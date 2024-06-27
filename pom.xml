@@ -3,7 +3,7 @@
 
     <groupId>org.jrivard</groupId>
     <artifactId>jcxfs</artifactId>
-    <version>1.0-SNAPSHOT</version>
+    <version>0.0.1-SNAPSHOT</version>
 
     <url>https://github.com/jrivard/jcxfs</url>
     <name>jcxfs: FUSE encrypted file system</name>
