@@ -16,15 +16,13 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
+import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
-
-import java.util.concurrent.atomic.AtomicLong;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 class InodeIdIssuer {
     private static final ByteIterable ID_COUNTER = StringBinding.stringToEntry("ID_COUNTER");

@@ -27,7 +27,7 @@
             <groupId>org.jetbrains.xodus</groupId>
             <artifactId>xodus-environment</artifactId>
             <version>2.0.1</version>
-            <!--
+            <scope>provided</scope>
             <exclusions>
                 <exclusion>
                     <groupId>org.jetbrains.kotlin</groupId>
@@ -42,63 +42,64 @@
                     <artifactId>kotlin-logging</artifactId>
                 </exclusion>
             </exclusions>
-            -->
         </dependency>
         <dependency>
             <groupId>org.jetbrains.xodus</groupId>
             <artifactId>xodus-compress</artifactId>
             <version>2.0.1</version>
-<!--
-            <exclusions>
-                <exclusion>
-                    <groupId>org.jetbrains.kotlin</groupId>
-                    <artifactId>kotlin-stdlib</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-compress</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.github.microutils</groupId>
-                    <artifactId>kotlin-logging</artifactId>
-                </exclusion>
-            </exclusions>
--->
+            <scope>compile</scope>
+            <!--
+                        <exclusions>
+                            <exclusion>
+                                <groupId>org.jetbrains.kotlin</groupId>
+                                <artifactId>kotlin-stdlib</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>org.apache.commons</groupId>
+                                <artifactId>commons-compress</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>io.github.microutils</groupId>
+                                <artifactId>kotlin-logging</artifactId>
+                            </exclusion>
+                        </exclusions>
+            -->
         </dependency>
         <dependency>
             <groupId>org.jetbrains.xodus</groupId>
             <artifactId>xodus-utils</artifactId>
             <version>2.0.1</version>
-<!--
-            <exclusions>
-                <exclusion>
-                    <groupId>org.jetbrains.kotlin</groupId>
-                    <artifactId>kotlin-stdlib</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.apache.commons</groupId>
-                    <artifactId>commons-compress</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>io.github.microutils</groupId>
-                    <artifactId>kotlin-logging</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
-                </exclusion>
-                <exclusion>
-                    <groupId>org.jetbrains</groupId>
-                    <artifactId>annotations</artifactId>
-                </exclusion>
-            </exclusions>
--->
+            <scope>compile</scope>
+
+                        <exclusions>
+                            <exclusion>
+                                <groupId>org.jetbrains.kotlin</groupId>
+                                <artifactId>kotlin-stdlib</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>org.apache.commons</groupId>
+                                <artifactId>commons-compress</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>io.github.microutils</groupId>
+                                <artifactId>kotlin-logging</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>org.slf4j</groupId>
+                                <artifactId>slf4j-api</artifactId>
+                            </exclusion>
+                            <exclusion>
+                                <groupId>org.jetbrains</groupId>
+                                <artifactId>annotations</artifactId>
+                            </exclusion>
+                        </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.xodus</groupId>
             <artifactId>xodus-openAPI</artifactId>
             <version>2.0.1</version>
-<!--
+            <scope>compile</scope>
+
             <exclusions>
                 <exclusion>
                     <groupId>org.jetbrains.kotlin</groupId>
@@ -113,14 +114,19 @@
                     <artifactId>kotlin-logging</artifactId>
                 </exclusion>
             </exclusions>
--->
         </dependency>
         <dependency>
             <groupId>org.jetbrains.xodus</groupId>
             <artifactId>xodus-crypto</artifactId>
             <version>2.0.1</version>
-<!--
+            <scope>compile</scope>
+
+
             <exclusions>
+                <exclusion>
+                    <groupId>org.bouncycastle</groupId>
+                    <artifactId>bcpg-jdk15on</artifactId>
+                </exclusion>
                 <exclusion>
                     <groupId>org.jetbrains.kotlin</groupId>
                     <artifactId>kotlin-stdlib</artifactId>
@@ -133,43 +139,47 @@
                     <groupId>io.github.microutils</groupId>
                     <artifactId>kotlin-logging</artifactId>
                 </exclusion>
-                <exclusion>
-                    <groupId>org.bouncycastle</groupId>
-                    <artifactId>bcpg-jdk15on</artifactId>
-                </exclusion>
             </exclusions>
--->
         </dependency>
 
+
+
+
+        <dependency>
+            <groupId>org.jetbrains.kotlin</groupId>
+            <artifactId>kotlin-stdlib</artifactId>
+            <version>1.9.10</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.jetbrains</groupId>
+            <artifactId>annotations</artifactId>
+            <version>24.1.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-compress</artifactId>
+            <version>1.26.2</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>io.github.microutils</groupId>
+            <artifactId>kotlin-logging</artifactId>
+            <version>1.7.9</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk18on</artifactId>
+            <version>1.78.1</version>
+            <scope>provided</scope>
+        </dependency>
     </dependencies>
 
     <build>
         <plugins>
-
-<!--
-            <plugin>
-                <groupId>org.commonjava.maven.plugins</groupId>
-                <artifactId>directory-maven-plugin</artifactId>
-                <version>1.0</version>
-                <executions>
-                    <execution>
-                        <id>project-root-directory</id>
-                        <goals>
-                            <goal>directory-of</goal>
-                        </goals>
-                        <phase>validate</phase>
-                        <configuration>
-                            <property>project.root.basedir</property>
-                            <project>
-                                <groupId>org.jrivard</groupId>
-                                <artifactId>jcxfs</artifactId>
-                            </project>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
--->
-
+            <!--
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-dependency-plugin</artifactId>
@@ -183,6 +193,7 @@
                         </goals>
                         <configuration>
                             <outputDirectory>${project.build.outputDirectory}</outputDirectory>
+
                             <artifactItems>
                                 <artifactItem>
                                     <groupId>org.jetbrains.xodus</groupId>
@@ -207,45 +218,156 @@
                 </executions>
             </plugin>
 
+-->
+            <!--         <plugin>
+                         <groupId>org.apache.maven.plugins</groupId>
+                         <artifactId>maven-jar-plugin</artifactId>
+                         <version>3.4.2</version>
+                         <executions>
+                             <execution>
+                                 <id>default-jar</id>
+                                 <goals>
+                                     <goal>jar</goal>
+                                 </goals>
+                                 <configuration>
+                                     <archive>
+                                         <manifest>
+                                             <addDefaultEntries>false</addDefaultEntries>
+                                             <addDefaultImplementationEntries>false</addDefaultImplementationEntries>
+                                         </manifest>
+                                         <manifestEntries>
+                                             <Archive-Type>jar</Archive-Type>
+                                             \                                   <Implementation-Title>${project.name}</Implementation-Title>
+                                             <Implementation-Version>${project.version}</Implementation-Version>
+                                             <Implementation-Vendor>${project.organization.name}</Implementation-Vendor>
+                                             <Implementation-URL>${project.url}</Implementation-URL>
+                                             <Implementation-Build-Java-Version>${maven.compiler.target}</Implementation-Build-Java-Version>
+                                             <SCM-Git-Branch>${git.branch}</SCM-Git-Branch>
+                                             <SCM-Git-Commit-ID>${git.commit.id}</SCM-Git-Commit-ID>
+                                             <SCM-Git-Commit-ID-Abbrev>${git.commit.id.abbrev}</SCM-Git-Commit-ID-Abbrev>
+                                             <SCM-Git-Commit-ID-Description>${git.commit.id.describe}</SCM-Git-Commit-ID-Description>
+                                             <SCM-Git-Commit-Timestamp>${git.commit.time}</SCM-Git-Commit-Timestamp>
+                                             <SCM-Git-Commit-Dirty>${git.dirty}</SCM-Git-Commit-Dirty>
+                                             <SCM-Git-Remote-Origin-URL>${git.remote.origin.url}</SCM-Git-Remote-Origin-URL>
+                                             <manifest-id>xodus-jcxfs</manifest-id>
+                                         </manifestEntries>
+                                     </archive>
+                                 </configuration>
+                             </execution>
+                         </executions>
+                     </plugin>
+         -->
+
+
 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-jar-plugin</artifactId>
-                <version>3.4.2</version>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.11.0</version>
+                <configuration>
+                    <source>11</source>
+                    <target>11</target>
+                </configuration>
+            </plugin>
+<!--
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.6.0</version>
                 <executions>
                     <execution>
-                        <id>default-jar</id>
+                        <phase>package</phase>
                         <goals>
-                            <goal>jar</goal>
+                            <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <archive>
-                                <manifest>
-                                    <addDefaultEntries>false</addDefaultEntries>
-                                    <addDefaultImplementationEntries>false</addDefaultImplementationEntries>
-                                </manifest>
-                                <manifestEntries>
-                                    <Archive-Type>jar</Archive-Type>
- \                                   <Implementation-Title>${project.name}</Implementation-Title>
-                                    <Implementation-Version>${project.version}</Implementation-Version>
-                                    <Implementation-Vendor>${project.organization.name}</Implementation-Vendor>
-                                    <Implementation-URL>${project.url}</Implementation-URL>
-                                    <Implementation-Build-Java-Version>${maven.compiler.target}</Implementation-Build-Java-Version>
-                                    <SCM-Git-Branch>${git.branch}</SCM-Git-Branch>
-                                    <SCM-Git-Commit-ID>${git.commit.id}</SCM-Git-Commit-ID>
-                                    <SCM-Git-Commit-ID-Abbrev>${git.commit.id.abbrev}</SCM-Git-Commit-ID-Abbrev>
-                                    <SCM-Git-Commit-ID-Description>${git.commit.id.describe}</SCM-Git-Commit-ID-Description>
-                                    <SCM-Git-Commit-Timestamp>${git.commit.time}</SCM-Git-Commit-Timestamp>
-                                    <SCM-Git-Commit-Dirty>${git.dirty}</SCM-Git-Commit-Dirty>
-                                    <SCM-Git-Remote-Origin-URL>${git.remote.origin.url}</SCM-Git-Remote-Origin-URL>
-                                    <manifest-id>xodus-jcxfs</manifest-id>
-                                </manifestEntries>
-                            </archive>
-                            </configuration>
+                            <minimizeJar>true</minimizeJar>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>
 
+            <plugin>
+                <groupId>org.moditect</groupId>
+                <artifactId>moditect-maven-plugin</artifactId>
+                <version>1.0.0.Final</version>
+                <executions>
+                    <execution>
+                        <id>add-module-infos</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>add-module-info</goal>
+                        </goals>
+                        <configuration>
+                            <jvmVersion>22</jvmVersion>
+                            <failOnWarning>false</failOnWarning>
+                            <outputTimestamp>1980-01-01T00:00:02Z</outputTimestamp>
+                            <module>
+                                <moduleInfo>
+                                    <name>org.jrivard.xodus.jpms</name>
+                                    <exports>
+                                        jetbrains.exodus;
+                                        jetbrains.exodus.crypto;
+                                        jetbrains.exodus.env;
+                                        jetbrains.exodus.bindings;
+                                        jetbrains.exodus.util;
+                                        jetbrains.exodus.crypto.streamciphers;
+                                    </exports>
+                                    <requires>
+                                        org.jetbrains.annotations;
+                                        kotlin.stdlib;
+                                        static transitive kotlin.logging;
+                                        org.bouncycastle.provider;
+                                        org.apache.commons.compress;
+                                        org.slf4j;
+                                        !xodus.openAPI;
+                                        !xodus.environment;
+                                    </requires>
+                                    <uses>
+                                        jetbrains.exodus.io.DataReaderWriterProvider;
+                                    </uses>
+                                </moduleInfo>
+                            </module>
+                            <exclusions>
+                                <exclusion>
+                                    <groupId>com.acme</groupId>
+                                    <artifactId>thing</artifactId>
+                                </exclusion>
+                            </exclusions>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+                        <plugin>
+                            <groupId>org.apache.maven.plugins</groupId>
+                            <artifactId>maven-assembly-plugin</artifactId>
+                            <version>3.7.1</version>
+                            <configuration>
+                                <descriptorRefs>
+                                    <descriptorRef>jar-with-dependencies</descriptorRef>
+                                </descriptorRefs>
+                            </configuration>
+                            <executions>
+                                <execution>
+                                    <id>make-assembly</id>
+                                    <phase>package</phase>
+                                    <goals>
+                                        <goal>single</goal>
+                                    </goals>
+                                </execution>
+                            </executions>
+                        </plugin>
+            -->
         </plugins>
     </build>
 

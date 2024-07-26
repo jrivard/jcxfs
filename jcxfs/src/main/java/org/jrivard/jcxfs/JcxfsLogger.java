@@ -46,8 +46,8 @@ public class JcxfsLogger {
         log(LogUtil.LogLevel.trace, null, message);
     }
 
-    public void trace(final String message) {
-        log(LogUtil.LogLevel.trace, null, message);
+    public void trace(final Supplier<String> message, final Throwable throwable) {
+        log(LogUtil.LogLevel.trace, throwable, message);
     }
 
     public void debug(final Supplier<String> message) {

@@ -19,7 +19,7 @@ package org.jrivard.jcxfs.xodusfs;
 import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.List;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -124,16 +124,14 @@ public class XodusFsTest {
                     pathKey.path(), InodeEntry.newDirectoryEntry().mode());
         }
 
-        {
+        try (final Stream<String> dirListingStream = xodusFs.directoryListing("/")) {
             final List<String> expectedSubPaths = List.of("1", "2", "3");
-            Assertions.assertEquals(
-                    expectedSubPaths, xodusFs.directoryListing("/").toList());
+            Assertions.assertEquals(expectedSubPaths, dirListingStream.toList());
         }
 
-        {
+        try (final Stream<String> dirListingStream = xodusFs.directoryListing("/1/a")) {
             final List<String> expectedSubPaths = List.of("aaa", "bbb", "ccc");
-            Assertions.assertEquals(
-                    expectedSubPaths, xodusFs.directoryListing("/1/a").toList());
+            Assertions.assertEquals(expectedSubPaths, dirListingStream.toList());
         }
     }
 }

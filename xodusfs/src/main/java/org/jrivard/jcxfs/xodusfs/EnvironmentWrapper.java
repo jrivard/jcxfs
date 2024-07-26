@@ -17,6 +17,8 @@
 package org.jrivard.jcxfs.xodusfs;
 
 import java.nio.file.Path;
+import java.time.Duration;
+import java.time.Instant;
 import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Iterator;
@@ -24,6 +26,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Spliterators;
+import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 import jetbrains.exodus.ByteIterable;
@@ -34,7 +39,6 @@ import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.env.TransactionalComputable;
 import jetbrains.exodus.env.TransactionalExecutable;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
 import org.jrivard.jcxfs.xodusfs.util.JsonUtil;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 
@@ -46,6 +50,10 @@ public class EnvironmentWrapper {
     private final Environment environment;
     private final XodusFsConfig config;
     private final EnvParams envParams;
+
+    private final AtomicBoolean environmentOpen = new AtomicBoolean(true);
+    private final AtomicInteger ACTIVE_OPERATIONS = new AtomicInteger(0);
+    private final AtomicInteger OPEN_ITERATORS = new AtomicInteger(0);
 
     private final EnumMap<XodusStore, Store> storeCache = new EnumMap<>(XodusStore.class);
 
@@ -90,7 +98,7 @@ public class EnvironmentWrapper {
         initStoreCache();
     }
 
-    public void truncateStore(final Transaction txn, final XodusStore xodusStore) {
+    void truncateStore(final Transaction txn, final XodusStore xodusStore) {
         if (environment.storeExists(xodusStore.name(), txn)) {
             environment.truncateStore(xodusStore.name(), txn);
         }
@@ -98,6 +106,28 @@ public class EnvironmentWrapper {
     }
 
     public void close() {
+        LOG.debug(() -> "close requested with "
+                + ACTIVE_OPERATIONS.get() + " active operations and "
+                + OPEN_ITERATORS.get() + " open iterators");
+        environmentOpen.set(false);
+
+        final Instant startTime = Instant.now();
+
+        while (ACTIVE_OPERATIONS.get() + OPEN_ITERATORS.get() > 0) {
+            System.out.println("ops=" + ACTIVE_OPERATIONS.get());
+            System.out.println("iters=" + OPEN_ITERATORS.get());
+            LOG.debug(
+                    () -> "waiting for "
+                            + ACTIVE_OPERATIONS.get() + " active operations and "
+                            + OPEN_ITERATORS.get() + " open iterators to complete",
+                    Duration.between(Instant.now(), startTime));
+            try {
+                Thread.sleep(5000); // Wait for a short period before checking again
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
+        }
+
         this.environment.close();
     }
 
@@ -112,47 +142,71 @@ public class EnvironmentWrapper {
     }
 
     <R> R doCompute(final TransactionalComputable<R> computable) throws FileOpException {
+        if (!environmentOpen.get()) {
+            throw new IllegalStateException("cannot initiate operation while environment is closed");
+        }
+
         try {
+            ACTIVE_OPERATIONS.incrementAndGet();
             return environment.computeInTransaction(computable);
         } catch (final RuntimeXodusFsException e) {
+            LOG.debug(() -> "error computing transaction: " + e.getMessage(), e);
             throw e.asXodusFsException();
+        } finally {
+            ACTIVE_OPERATIONS.decrementAndGet();
         }
     }
 
-    public void doExecute(final TransactionalExecutable executable) throws FileOpException {
-        try {
-            environment.executeInTransaction(executable);
-        } catch (final RuntimeXodusFsException e) {
-            throw e.asXodusFsException();
-        }
+    void doExecute(final TransactionalExecutable executable) throws FileOpException {
+        doCompute(transaction -> {
+            executable.execute(transaction);
+            return null;
+        });
     }
 
     public boolean removeKeyValue(
-            final Transaction txn, final XodusStore xodusStore, final ByteIterable key, final ByteIterable value) {
-        try (final Cursor cursor = getStore(xodusStore).openCursor(txn)) {
-            if (cursor.getSearchBoth(key, value)) {
-                cursor.deleteCurrent();
-                return true;
+            final Transaction txn, final XodusStore xodusStore, final ByteIterable key, final ByteIterable value)
+            throws FileOpException {
+        return doCompute(p -> {
+            try (final Cursor cursor = getStore(xodusStore).openCursor(txn)) {
+                if (cursor.getSearchBoth(key, value)) {
+                    cursor.deleteCurrent();
+                    return true;
+                }
             }
-        }
-        return false;
+            return false;
+        });
     }
 
-    public Stream<Map.Entry<ByteIterable, ByteIterable>> allEntries(final Transaction txn, final XodusStore store) {
-        final InnerIterator innerIterator = new InnerIterator(txn, store, null);
-        return StreamSupport.stream(Spliterators.spliteratorUnknownSize(innerIterator, 0), false)
-                .onClose(innerIterator::close);
+    void forEach(
+            final Transaction txn,
+            final XodusStore store,
+            final Consumer<Map.Entry<ByteIterable, ByteIterable>> action) {
+        forEach(txn, store, null, action);
+    }
+
+    void forEach(
+            final Transaction txn,
+            final XodusStore store,
+            final ByteIterable matchingKey,
+            final Consumer<Map.Entry<ByteIterable, ByteIterable>> action) {
+        try (final Stream<Map.Entry<ByteIterable, ByteIterable>> stream = allEntriesForKey(txn, store, matchingKey)) {
+            stream.forEach(action);
+        }
     }
 
     public Stream<Map.Entry<ByteIterable, ByteIterable>> allEntriesForKey(
             final Transaction txn, final XodusStore store, final ByteIterable key) {
+        OPEN_ITERATORS.incrementAndGet();
         final InnerIterator innerIterator = new InnerIterator(txn, store, key);
         return StreamSupport.stream(Spliterators.spliteratorUnknownSize(innerIterator, 0), false)
-                .onClose(innerIterator::close);
+                .onClose(() -> {
+                    OPEN_ITERATORS.decrementAndGet();
+                    innerIterator.close();
+                });
     }
 
     private class InnerIterator implements Iterator<Map.Entry<ByteIterable, ByteIterable>>, AutoCloseable {
-        private final Transaction transaction;
         private final Cursor cursor;
         private final ByteIterable selectedKey;
 
@@ -162,7 +216,6 @@ public class EnvironmentWrapper {
         private Map.Entry<ByteIterable, ByteIterable> nextValue = null;
 
         InnerIterator(final Transaction transaction, final XodusStore store, final ByteIterable selectedKey) {
-            this.transaction = transaction;
             this.cursor = getStore(store).openCursor(transaction);
             this.selectedKey = selectedKey;
             doNext();

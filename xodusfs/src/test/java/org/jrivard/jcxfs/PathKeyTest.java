@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package org.jrivard.jcxfs.xodusfs;
+package org.jrivard.jcxfs;
 
+import org.jrivard.jcxfs.xodusfs.PathKey;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
@@ -35,9 +36,17 @@ public class PathKeyTest {
 
     @Test
     public void verifyPathSyntax() {
+        Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad/../bad"));
+
         Assertions.assertDoesNotThrow(() -> PathKey.of("/"));
         Assertions.assertDoesNotThrow(() -> PathKey.of("/good"));
         Assertions.assertDoesNotThrow(() -> PathKey.of("/good/good"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("/good/.good./good"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("/good/..good../good"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("/good/good/.good"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("/good/good/..good"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("/good/good/good."));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("/good/good/good.."));
 
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of(""));
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("//"));
@@ -45,5 +54,8 @@ public class PathKeyTest {
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad//"));
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad//bad"));
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad/../bad"));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad/.../bad"));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad/.."));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad/..."));
     }
 }

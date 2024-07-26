@@ -36,6 +36,15 @@
         <skipSpotbugs>false</skipSpotbugs>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>skip-tests</id>
+            <properties>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
+    </profiles>
+
     <dependencies>
         <dependency>
             <groupId>org.cryptomator</groupId>

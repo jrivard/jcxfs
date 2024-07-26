@@ -14,14 +14,23 @@
  * limitations under the License.
  */
 
-package org.jrivard.jcxfs.xodusfs.util;
+package org.jrivard.jcxfs;
 
-public class JcxfsException extends Exception {
-    public JcxfsException(final String s) {
-        super(s);
-    }
+import java.io.IOException;
+import java.io.Writer;
 
-    public JcxfsException(final String s, final Throwable e) {
-        super(s, e);
+public interface JcxfsConsoleWriter {
+    void writeLine(String s);
+
+    static JcxfsConsoleWriter forWriter(final Writer writer) {
+        final JcxfsConsoleWriter xodusDebugWriter = s -> {
+            try {
+                writer.append(s + "\n");
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        };
+
+        return xodusDebugWriter;
     }
 }

@@ -34,7 +34,7 @@ public class MountCommand extends AbstractCommandRunnable {
     private String fuseMountPath;
 
     public int execute(final CommandContext commandContext) throws Exception {
-        LOG.trace("beginning mount command");
+        LOG.trace(() -> "beginning mount command");
 
         final JcxfsEnv jcxfsEnv = new JcxfsEnv();
 

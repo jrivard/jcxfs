@@ -17,20 +17,20 @@
 package org.jrivard.jcxfs.xodusfs;
 
 import java.lang.reflect.InvocationTargetException;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
 
 public interface CipherGenerator {
     String makeCipher(String password);
 
-    static String makeCipher(final Class<? extends CipherGenerator> cipherClass, final String password)
-            throws JcxfsException {
+    static String makeCipher(final String cipherClass, final String password) throws JcxfsException {
         try {
+            final Class<?> theClass = Class.forName(cipherClass);
             final CipherGenerator cipherGenerator =
-                    cipherClass.getDeclaredConstructor().newInstance();
+                    (CipherGenerator) theClass.getDeclaredConstructor().newInstance();
             return cipherGenerator.makeCipher(password);
         } catch (final InvocationTargetException
                 | InstantiationException
                 | IllegalAccessException
+                | ClassNotFoundException
                 | NoSuchMethodException e) {
             throw new JcxfsException("error generating cipher from password " + e.getMessage(), e);
         }

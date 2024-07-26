@@ -16,12 +16,12 @@
 
 package org.jrivard.jcxfs.cmd;
 
-import java.io.PrintWriter;
-import java.util.Scanner;
 import org.jrivard.jcxfs.JcxfsLogger;
 import org.jrivard.jcxfs.xodusfs.XodusFsConfig;
 import org.jrivard.jcxfs.xodusfs.XodusFsUtils;
 import picocli.CommandLine;
+
+import java.io.PrintWriter;
 
 @CommandLine.Command(name = "stats", description = "get debug info about a repository")
 public class StatsCommand extends AbstractCommandRunnable {
@@ -31,10 +31,10 @@ public class StatsCommand extends AbstractCommandRunnable {
     private JcxfsCommandLine parentCommand;
 
     public int execute(final CommandContext commandContext) throws Exception {
-        LOG.trace("beginning stats command");
+        LOG.trace(() -> "beginning stats command");
 
-        System.out.println("Press any key to begin");
-        new Scanner(System.in).nextLine();
+        // System.out.println("Press any key to begin");
+        // new Scanner(System.in).nextLine();
 
         final XodusFsConfig xodusFsConfig = parentCommand.toXodusConfig();
 

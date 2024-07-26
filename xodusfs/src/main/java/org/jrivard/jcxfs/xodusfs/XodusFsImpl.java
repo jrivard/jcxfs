@@ -119,8 +119,10 @@ class XodusFsImpl implements XodusFs {
                 throw RuntimeXodusFsException.of(FileOpError.NO_SUCH_DIR, "directory does not exist");
             }
 
-            if (pathStore.readSubPaths(txn, pathKey).findAny().isPresent()) {
-                throw RuntimeXodusFsException.of(FileOpError.DIR_NOT_EMPTY, "directory not empty");
+            try (final Stream<String> pathRecordStream = pathStore.readSubPaths(txn, pathKey)) {
+                if (pathRecordStream.findAny().isPresent()) {
+                    throw RuntimeXodusFsException.of(FileOpError.DIR_NOT_EMPTY, "directory not empty");
+                }
             }
 
             pathStore.removeEntry(txn, pathKey);

@@ -16,17 +16,17 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
+import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.env.EnvironmentConfig;
+import jetbrains.exodus.env.Environments;
+import jetbrains.exodus.env.Store;
+import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
+
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.stream.Stream;
-import jetbrains.exodus.env.Environment;
-import jetbrains.exodus.env.EnvironmentConfig;
-import jetbrains.exodus.env.Environments;
-import jetbrains.exodus.env.Store;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
-import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 
 public final class XodusFsUtils {
     private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(XodusFsUtils.class);
@@ -90,7 +90,7 @@ public final class XodusFsUtils {
         initParameters.writeToFile(xodusFsConfig.path());
 
         final EnvironmentConfig environmentConfig = new EnvironmentConfig();
-        environmentConfig.setCipherId(initParameters.cipherClass().getName());
+        environmentConfig.setCipherId(initParameters.cipherClass());
         environmentConfig.setCipherKey(cipher);
         environmentConfig.setCipherBasicIV(initParameters.iv());
 
@@ -113,7 +113,7 @@ public final class XodusFsUtils {
             // environmentConfig.setGcUtilizationFromScratch(true);
             // environmentConfig.setGcMinUtilization(90);
 
-            environmentConfig.setCipherId(envParams.cipherClass().getName());
+            environmentConfig.setCipherId(envParams.cipherClass());
             environmentConfig.setCipherKey(cipher);
             environmentConfig.setCipherBasicIV(envParams.iv());
 

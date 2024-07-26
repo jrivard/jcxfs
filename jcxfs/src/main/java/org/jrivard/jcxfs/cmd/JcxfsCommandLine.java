@@ -16,11 +16,13 @@
 
 package org.jrivard.jcxfs.cmd;
 
+import java.io.PrintWriter;
 import java.nio.file.Path;
+import org.jrivard.jcxfs.JcxfsConsoleWriter;
 import org.jrivard.jcxfs.LogUtil;
 import org.jrivard.jcxfs.VersionUtil;
+import org.jrivard.jcxfs.xodusfs.JcxfsException;
 import org.jrivard.jcxfs.xodusfs.XodusFsConfig;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.AutoComplete;
@@ -82,7 +84,8 @@ public class JcxfsCommandLine {
         try {
             LOGGER.trace("jcxfs reporting for duty");
 
-            final CommandContext context = new CommandContext(spec.commandLine().getParseResult());
+            final CommandContext context = new CommandContext(
+                    spec.commandLine().getParseResult(), JcxfsConsoleWriter.forWriter(new PrintWriter(System.out)));
 
             final int result = commandRunnable.execute(context);
             LOGGER.debug("exiting jcxfs" + (result != 0 ? "(" + result + ")" : ""));

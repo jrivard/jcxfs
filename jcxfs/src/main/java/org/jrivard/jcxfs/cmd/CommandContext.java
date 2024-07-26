@@ -16,6 +16,7 @@
 
 package org.jrivard.jcxfs.cmd;
 
+import org.jrivard.jcxfs.JcxfsConsoleWriter;
 import picocli.CommandLine;
 
-public record CommandContext(CommandLine.ParseResult parseResult) {}
+public record CommandContext(CommandLine.ParseResult parseResult, JcxfsConsoleWriter consoleOutput) {}

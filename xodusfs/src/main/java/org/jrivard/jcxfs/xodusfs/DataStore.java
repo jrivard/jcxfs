@@ -18,7 +18,6 @@ package org.jrivard.jcxfs.xodusfs;
 
 import java.nio.ByteBuffer;
 import jetbrains.exodus.env.Transaction;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
 
 interface DataStore extends StoreBucket {
     enum DataStoreImplType {

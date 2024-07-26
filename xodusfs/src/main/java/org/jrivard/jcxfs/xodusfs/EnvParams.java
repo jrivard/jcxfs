@@ -22,12 +22,10 @@ import java.io.OutputStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HexFormat;
-import java.util.Objects;
 import java.util.Properties;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 
-public record EnvParams(long iv, Class<?> cipherClass, Class<? extends CipherGenerator> passwordClass) {
+public record EnvParams(long iv, String cipherClass, String passwordClass) {
 
     private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(EnvParams.class);
 
@@ -45,15 +43,21 @@ public record EnvParams(long iv, Class<?> cipherClass, Class<? extends CipherGen
             throw new IllegalStateException("non-zero iv value required");
         }
 
-        Objects.requireNonNull(cipherClass);
+        if (cipherClass == null || cipherClass.isEmpty()) {
+            cipherClass = "jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider";
+        }
+
+        if (passwordClass == null || passwordClass.isEmpty()) {
+            passwordClass = ArgonGenerator.class.getName();
+        }
     }
 
     public void writeToFile(final Path directoryPath) throws IOException {
         final Properties props = new Properties();
 
         props.setProperty(KEY_IV, HexFormat.of().toHexDigits(iv));
-        props.setProperty(KEY_CIPHER_CLASS, cipherClass.getName());
-        props.setProperty(KEY_PASSWORD_CLASS, passwordClass.getName());
+        props.setProperty(KEY_CIPHER_CLASS, cipherClass);
+        props.setProperty(KEY_PASSWORD_CLASS, passwordClass);
 
         try (final OutputStream os = Files.newOutputStream(directoryPath.resolve(FILE_NAME))) {
             props.store(os, COMMENT);
@@ -71,8 +75,8 @@ public record EnvParams(long iv, Class<?> cipherClass, Class<? extends CipherGen
             props.load(os);
             return new EnvParams(
                     HexFormat.fromHexDigitsToLong(props.getProperty(KEY_IV)),
-                    (Class<?>) Class.forName(props.getProperty(KEY_CIPHER_CLASS)),
-                    (Class<? extends CipherGenerator>) Class.forName(props.getProperty(KEY_PASSWORD_CLASS)));
+                    props.getProperty(KEY_CIPHER_CLASS),
+                    props.getProperty(KEY_PASSWORD_CLASS));
 
         } catch (final Exception e) {
             throw new JcxfsException("init: error reading " + FILE_NAME + ", error: " + e.getMessage(), e);

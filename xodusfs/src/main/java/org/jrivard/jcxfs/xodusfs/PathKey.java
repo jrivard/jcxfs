@@ -22,7 +22,7 @@ import java.util.Objects;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.StringBinding;
 
-record PathKey(String path) implements StoreKey {
+public record PathKey(String path) implements StoreKey {
     private static final String PATH_SEPARATOR = "/";
     private static final PathKey ROOT_PATH = new PathKey("/");
 
@@ -73,7 +73,15 @@ record PathKey(String path) implements StoreKey {
     }
 
     public List<String> segments() {
-        return Arrays.asList(path.split("\\/")).stream()
+        return segments(path);
+    }
+
+    private static List<String> segments(final String fullPath) {
+        if (fullPath == null || fullPath.isEmpty()) {
+            return List.of();
+        }
+
+        return Arrays.stream(fullPath.split("\\/"))
                 .filter(Objects::nonNull)
                 .filter(o -> !o.isEmpty())
                 .toList();
@@ -97,12 +105,14 @@ record PathKey(String path) implements StoreKey {
             throw new IllegalArgumentException("path may not end with separator");
         }
 
-        if (path.contains("..")) {
-            throw new IllegalArgumentException("path may not contain parent reference");
-        }
-
         if (path.contains("//")) {
             throw new IllegalArgumentException("path may not contain empty segment");
+        }
+
+        for (final String segment : segments(path)) {
+            if (stringIsAllOfCharacter(segment, '.')) {
+                throw new IllegalArgumentException("path may not contain parent reference");
+            }
         }
     }
 
@@ -112,5 +122,19 @@ record PathKey(String path) implements StoreKey {
 
     public boolean isRoot() {
         return isRoot(path);
+    }
+
+    private static boolean stringIsAllOfCharacter(final String input, final char testChar) {
+        if (input == null || input.isEmpty()) {
+            return false;
+        }
+
+        for (int i = 0; i < input.length(); i++) {
+            if (input.charAt(i) != testChar) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

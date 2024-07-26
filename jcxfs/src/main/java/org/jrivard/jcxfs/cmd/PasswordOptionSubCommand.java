@@ -19,7 +19,7 @@ package org.jrivard.jcxfs.cmd;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
+import org.jrivard.jcxfs.xodusfs.JcxfsException;
 import picocli.CommandLine;
 
 public class PasswordOptionSubCommand {

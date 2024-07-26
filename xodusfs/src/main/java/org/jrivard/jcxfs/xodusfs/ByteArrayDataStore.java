@@ -26,7 +26,6 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
 import org.jrivard.jcxfs.xodusfs.util.JavaUtil;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 import org.slf4j.event.Level;
 
@@ -312,9 +311,10 @@ class ByteArrayDataStore implements DataStore {
         }
 
         public void printStats() {
-            environmentWrapper
-                    .allEntries(transaction, XodusStore.DATA)
-                    .forEach(entry -> printPathEntryDebug(entry, output));
+            environmentWrapper.forEach(
+                    transaction,
+                    XodusStore.DATA,
+                    byteIterableByteIterableEntry -> printPathEntryDebug(byteIterableByteIterableEntry, output));
         }
 
         private void printPathEntryDebug(
@@ -322,10 +322,6 @@ class ByteArrayDataStore implements DataStore {
             final DataKey dataKey = DataKey.fromByteIterable(entry.getKey());
             writer.writeLine(" dataPage: inode=" + InodeId.prettyPrint(dataKey.fid()) + " page: " + dataKey.page()
                     + " length: " + entry.getValue().getLength());
-        }
-
-        static Map.Entry<PathKey, Long> convertPathMapEntry(final Map.Entry<ByteIterable, ByteIterable> entry) {
-            return Map.entry(PathKey.fromByteIterable(entry.getKey()), InodeId.byteIterableToInodeId(entry.getValue()));
         }
     }
 

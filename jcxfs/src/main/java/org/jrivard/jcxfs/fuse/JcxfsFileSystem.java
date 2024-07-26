@@ -23,6 +23,7 @@ import java.util.EnumSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import org.cryptomator.jfuse.api.DirFiller;
 import org.cryptomator.jfuse.api.Errno;
 import org.cryptomator.jfuse.api.FileInfo;
@@ -98,8 +99,11 @@ public class JcxfsFileSystem implements FuseOperations {
             stat.cTime().set(entryAttrs.cTime());
             stat.mTime().set(entryAttrs.mTime());
             stat.birthTime().set(entryAttrs.bTime());
-            // stat.setGid(entryAttrs.gid());
-            // stat.setUid(entryAttrs.uid());
+            // stat.setGid();
+            // stat.setUid();
+
+            stat.setGid(fuseGid);
+            stat.setUid(fuseUid);
 
             stat.setMode(entryAttrs.mode());
 
@@ -114,6 +118,9 @@ public class JcxfsFileSystem implements FuseOperations {
             return 0;
         });
     }
+
+    private int fuseUid;
+    private int fuseGid;
 
     @Override
     public void init(final FuseConnInfo conn, final FuseConfig cfg) {
@@ -133,7 +140,7 @@ public class JcxfsFileSystem implements FuseOperations {
 
     @Override
     public int read(final String path, final ByteBuffer buf, final long size, final long offset, final FileInfo fi) {
-        LOG.debug(() -> "read() path=" + path + " buf=" + buf + " size=" + size + "  offset=" + offset);
+        LOG.debug(() -> "read() path=" + path + " buf=" + buf + " size=" + size + " offset=" + offset);
         return doOp(() -> xodusFs.read(path, buf, size, offset));
     }
 
@@ -235,7 +242,9 @@ public class JcxfsFileSystem implements FuseOperations {
             }
 
             final var pathFiller = new PathFiller(path, filler);
-            xodusFs.directoryListing(path).forEach(pathFiller);
+            try (final Stream<String> subPaths = xodusFs.directoryListing(path)) {
+                subPaths.forEach(pathFiller);
+            }
             return 0;
         });
     }

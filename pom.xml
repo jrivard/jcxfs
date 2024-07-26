@@ -37,6 +37,8 @@
         <project.build.outputTimestamp>${git.commit.time}</project.build.outputTimestamp>
 
         <skipSpotbugs>false</skipSpotbugs>
+        <skipTests>false</skipTests>
+
     </properties>
 
     <build>
@@ -177,6 +179,31 @@
                 </configuration>
             </plugin>
         </plugins>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                    <executions>
+                        <execution>
+                            <id>default-test</id>
+                            <goals>
+                                <goal>test</goal>
+                            </goals>
+                            <phase>test</phase>
+                            <configuration>
+                                <trimStackTrace>false</trimStackTrace>
+                                <skipTests>${skipTests}</skipTests>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+
+        </pluginManagement>
+
     </build>
 
 </project>

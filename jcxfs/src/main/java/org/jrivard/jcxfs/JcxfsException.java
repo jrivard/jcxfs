@@ -14,6 +14,6 @@
  * limitations under the License.
  */
 
-package jetbrains.exodus.env;
+package org.jrivard.jcxfs;
 
-public class XodusJpmsStub {}
+public class JcxfsException extends Exception {}

@@ -17,7 +17,6 @@
 package org.jrivard.jcxfs.cmd;
 
 import java.util.random.RandomGenerator;
-import jetbrains.exodus.crypto.StreamCipherProvider;
 import org.jrivard.jcxfs.xodusfs.ArgonGenerator;
 import org.jrivard.jcxfs.xodusfs.EnvParams;
 import org.jrivard.jcxfs.xodusfs.XodusFs;
@@ -55,11 +54,8 @@ public class InitCommand extends AbstractCommandRunnable {
 
         final XodusFsConfig xodusFsConfig = parentCommand.toXodusConfig();
 
-        final Class<? extends StreamCipherProvider> cipherClazz =
-                (Class<? extends StreamCipherProvider>) Class.forName(cipherClass);
-
         final long iv = RandomGenerator.of("SecureRandom").nextLong();
-        final EnvParams envParams = new EnvParams(iv, cipherClazz, ArgonGenerator.class);
+        final EnvParams envParams = new EnvParams(iv, cipherClass, ArgonGenerator.class.getName());
         final XodusFsParams xodusFsParams = new XodusFsParams(XodusFs.VERSION, xodusPageSize);
 
         XodusFsUtils.initXodusFileStore(xodusFsConfig, envParams, xodusFsParams);

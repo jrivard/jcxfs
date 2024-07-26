@@ -16,21 +16,20 @@
 
 package org.jrivard.jcxfs;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Objects;
 import org.cryptomator.jfuse.api.Fuse;
 import org.cryptomator.jfuse.api.FuseBuilder;
 import org.jrivard.jcxfs.fuse.JcxfsFileSystem;
+import org.jrivard.jcxfs.xodusfs.JcxfsException;
 import org.jrivard.jcxfs.xodusfs.XodusFs;
 import org.jrivard.jcxfs.xodusfs.XodusFsConfig;
 import org.jrivard.jcxfs.xodusfs.XodusFsUtils;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Objects;
 
 public class JcxfsEnv implements AutoCloseable {
-    private static final Logger LOG = LoggerFactory.getLogger(JcxfsEnv.class);
+    private static final JcxfsLogger LOGGER = JcxfsLogger.getLogger(JcxfsEnv.class);
 
     private XodusFs xodusFs = null;
     private Fuse fuse = null;
@@ -42,13 +41,13 @@ public class JcxfsEnv implements AutoCloseable {
 
     @Override
     public void close() throws Exception {
-        LOG.debug("closing xodus fs");
+        LOGGER.debug("closing xodus fs");
         xodusFs.close();
         try {
-            LOG.info("closing fuse");
+            LOGGER.info("closing fuse");
             fuse.close();
         } catch (final Exception e) {
-            LOG.error("failed to close fuse", e);
+            LOGGER.error("failed to close fuse", e);
         }
         xodusFs = null;
         fuse = null;
@@ -84,13 +83,13 @@ public class JcxfsEnv implements AutoCloseable {
         final JcxfsFileSystem fuseOps = new JcxfsFileSystem(builder.errno(), xodusFs);
         try {
             final Fuse fuse = builder.build(fuseOps);
-            LOG.info("Mounting at {}...", fuseMountPoint);
+            LOGGER.info(() -> "mounting at " + fuseMountPoint);
             fuse.mount("jcxfs", fuseMountPoint, "-s");
-            LOG.info("Mounted to {}.", fuseMountPoint);
+            LOGGER.info(() -> "mounted to " + fuseMountPoint + ", ready for bidness.");
             return fuse;
         } catch (final Exception e) {
-            LOG.error("Failed to attach fuse mount", e);
-            throw new IllegalStateException(e.getMessage());
+            LOGGER.trace(() -> "failed to attach fuse mount: " + e.getMessage(), e);
+            throw new JcxfsException(e.getMessage());
         }
     }
 }

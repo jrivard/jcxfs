@@ -28,7 +28,6 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
 import org.jrivard.jcxfs.xodusfs.util.JavaUtil;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 import org.slf4j.event.Level;
 
@@ -341,9 +340,10 @@ class ByteBufferDataStore implements DataStore {
         }
 
         public void printStats() {
-            environmentWrapper
-                    .allEntries(transaction, XodusStore.DATA)
-                    .forEach(entry -> printPathEntryDebug(entry, output));
+            environmentWrapper.forEach(
+                    transaction,
+                    XodusStore.DATA,
+                    byteIterableByteIterableEntry -> printPathEntryDebug(byteIterableByteIterableEntry, output));
         }
 
         private void printPathEntryDebug(

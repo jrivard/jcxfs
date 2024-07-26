@@ -20,7 +20,6 @@ import java.util.Optional;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
-import org.jrivard.jcxfs.xodusfs.util.JcxfsException;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 
 class InodeStore implements StoreBucket {
