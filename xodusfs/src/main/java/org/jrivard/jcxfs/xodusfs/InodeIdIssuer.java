@@ -23,6 +23,7 @@ import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
+import org.jrivard.jcxfs.xodusfs.util.StatCounterBundle;
 
 class InodeIdIssuer {
     private static final ByteIterable ID_COUNTER = StringBinding.stringToEntry("ID_COUNTER");
@@ -33,11 +34,19 @@ class InodeIdIssuer {
 
     private final InodeStore inodeStore;
     private final Store inodeMetaStore;
-    private final AtomicLong memoryCounter;
 
-    public InodeIdIssuer(final EnvironmentWrapper environment, final InodeStore inodeStore) throws JcxfsException {
+    private final AtomicLong memoryCounter;
+    private final StatCounterBundle<InodeStore.InodeStoreDebugStats> stats;
+
+    public InodeIdIssuer(
+            final EnvironmentWrapper environment,
+            final InodeStore inodeStore,
+            final StatCounterBundle<InodeStore.InodeStoreDebugStats> stats)
+            throws JcxfsException {
         this.inodeStore = inodeStore;
         this.inodeMetaStore = environment.getStore(XodusStore.INODE_META);
+        this.stats = stats;
+
         try {
             memoryCounter = environment.doCompute(txn -> {
                 final ByteIterable storedValue = inodeMetaStore.get(txn, ID_COUNTER);
@@ -62,6 +71,7 @@ class InodeIdIssuer {
                 if (!inodeStore.hasId(txn, nextLong)) {
                     final ByteIterable nextAsByteIterable = InodeId.inodeIdToByteIterable(nextLong);
                     inodeMetaStore.put(txn, ID_COUNTER, nextAsByteIterable);
+                    stats.increment(InodeStore.InodeStoreDebugStats.inodeIdCreateDupes);
                     return nextLong;
                 }
             }

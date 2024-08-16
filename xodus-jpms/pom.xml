@@ -1,20 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.jrivard</groupId>
         <artifactId>jcxfs-parent</artifactId>
-        <version>0.0.2-SNAPSHOT</version>
+        <version>0.0.3</version>
     </parent>
+
+    <artifactId>xodus-jpms</artifactId>
 
     <packaging>jar</packaging>
 
     <name>Jetbrains Xodus JPMS repackage</name>
-
-    <artifactId>xodus-jpms</artifactId>
 
     <properties>
         <maven.compiler.source>22</maven.compiler.source>
@@ -71,28 +69,28 @@
             <version>2.0.1</version>
             <scope>compile</scope>
 
-                        <exclusions>
-                            <exclusion>
-                                <groupId>org.jetbrains.kotlin</groupId>
-                                <artifactId>kotlin-stdlib</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>org.apache.commons</groupId>
-                                <artifactId>commons-compress</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>io.github.microutils</groupId>
-                                <artifactId>kotlin-logging</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>org.slf4j</groupId>
-                                <artifactId>slf4j-api</artifactId>
-                            </exclusion>
-                            <exclusion>
-                                <groupId>org.jetbrains</groupId>
-                                <artifactId>annotations</artifactId>
-                            </exclusion>
-                        </exclusions>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.jetbrains.kotlin</groupId>
+                    <artifactId>kotlin-stdlib</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.apache.commons</groupId>
+                    <artifactId>commons-compress</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>io.github.microutils</groupId>
+                    <artifactId>kotlin-logging</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>slf4j-api</artifactId>
+                </exclusion>
+                <exclusion>
+                    <groupId>org.jetbrains</groupId>
+                    <artifactId>annotations</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
         <dependency>
             <groupId>org.jetbrains.xodus</groupId>
@@ -121,7 +119,6 @@
             <version>2.0.1</version>
             <scope>compile</scope>
 
-
             <exclusions>
                 <exclusion>
                     <groupId>org.bouncycastle</groupId>
@@ -141,9 +138,6 @@
                 </exclusion>
             </exclusions>
         </dependency>
-
-
-
 
         <dependency>
             <groupId>org.jetbrains.kotlin</groupId>
@@ -258,8 +252,6 @@
                      </plugin>
          -->
 
-
-
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -269,7 +261,7 @@
                     <target>11</target>
                 </configuration>
             </plugin>
-<!--
+            <!--
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-shade-plugin</artifactId>

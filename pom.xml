@@ -1,21 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>org.jrivard</groupId>
     <artifactId>jcxfs-parent</artifactId>
-    <version>0.0.2-SNAPSHOT</version>
+    <version>0.0.3</version>
     <packaging>pom</packaging>
-
-    <url>https://github.com/jrivard/jcxfs</url>
     <name>jcxfs: FUSE encrypted file system</name>
     <description>FUSE encrypted file system</description>
 
-    <modules>
-        <module>xodus-jpms</module>
-        <module>xodusfs</module>
-        <module>jcxfs</module>
-        <module>test</module>
-    </modules>
+    <url>https://github.com/jrivard/jcxfs</url>
 
     <licenses>
         <license>
@@ -24,6 +18,13 @@
             <distribution>repo</distribution>
         </license>
     </licenses>
+
+    <modules>
+        <module>xodus-jpms</module>
+        <module>xodusfs</module>
+        <module>jcxfs</module>
+        <module>test</module>
+    </modules>
 
     <properties>
         <maven.compiler.source>22</maven.compiler.source>
@@ -38,10 +39,44 @@
 
         <skipSpotbugs>false</skipSpotbugs>
         <skipTests>false</skipTests>
-
+        <skipSpotless>false</skipSpotless>
     </properties>
 
+    <profiles>
+        <profile>
+            <id>skip-spotless</id>
+            <properties>
+                <skipSpotless>true</skipSpotless>
+            </properties>
+        </profile>
+    </profiles>
+
+
     <build>
+
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-surefire-plugin</artifactId>
+                    <version>3.2.5</version>
+                    <executions>
+                        <execution>
+                            <id>default-test</id>
+                            <goals>
+                                <goal>test</goal>
+                            </goals>
+                            <phase>test</phase>
+                            <configuration>
+                                <trimStackTrace>false</trimStackTrace>
+                                <skipTests>${skipTests}</skipTests>
+                            </configuration>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+
+        </pluginManagement>
         <plugins>
             <plugin>
                 <groupId>org.commonjava.maven.plugins</groupId>
@@ -92,15 +127,6 @@
                 <groupId>pl.project13.maven</groupId>
                 <artifactId>git-commit-id-plugin</artifactId>
                 <version>4.9.10</version>
-                <executions>
-                    <execution>
-                        <id>get-the-git-infos</id>
-                        <goals>
-                            <goal>revision</goal>
-                        </goals>
-                        <phase>initialize</phase>
-                    </execution>
-                </executions>
                 <configuration>
                     <failOnNoGitDirectory>false</failOnNoGitDirectory>
                     <dateFormat>yyyy-MM-dd'T'HH:mm:ss'Z'</dateFormat>
@@ -113,21 +139,22 @@
                         <excludeProperty>git.build.time</excludeProperty>
                     </excludeProperties>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>get-the-git-infos</id>
+                        <goals>
+                            <goal>revision</goal>
+                        </goals>
+                        <phase>initialize</phase>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>com.diffplug.spotless</groupId>
                 <artifactId>spotless-maven-plugin</artifactId>
                 <version>2.43.0</version>
-                <executions>
-                    <execution>
-                        <id>spotless</id>
-                        <phase>generate-sources</phase>
-                        <goals>
-                            <goal>apply</goal>
-                        </goals>
-                    </execution>
-                </executions>
                 <configuration>
+                    <skip>${skipSpotless}</skip>
                     <ratchetFrom>origin/master</ratchetFrom>
                     <formats>
                         <!-- you can define as many formats as you want, each is independent -->
@@ -138,8 +165,8 @@
                                 <include>.gitignore</include>
                             </includes>
                             <!-- define the steps to apply to those files -->
-                            <trimTrailingWhitespace/>
-                            <endWithNewline/>
+                            <trimTrailingWhitespace></trimTrailingWhitespace>
+                            <endWithNewline></endWithNewline>
                             <indent>
                                 <tabs>true</tabs>
                                 <spacesPerTab>4</spacesPerTab>
@@ -156,53 +183,46 @@
                             <include>src/main/java/**/*.java</include>
                             <include>src/test/java/**/*.java</include>
                         </includes>
-                        <importOrder />
-                        <removeUnusedImports />
-                        <toggleOffOn/>
-                        <trimTrailingWhitespace/>
-                        <endWithNewline/>
-                        <importOrder />
-                        <removeUnusedImports />
-                        <toggleOffOn/>
-                        <trimTrailingWhitespace/>
-                        <endWithNewline/>
+                        <importOrder></importOrder>
+                        <removeUnusedImports></removeUnusedImports>
+                        <toggleOffOn></toggleOffOn>
+                        <trimTrailingWhitespace></trimTrailingWhitespace>
+                        <endWithNewline></endWithNewline>
+                        <importOrder></importOrder>
+                        <removeUnusedImports></removeUnusedImports>
+                        <toggleOffOn></toggleOffOn>
+                        <trimTrailingWhitespace></trimTrailingWhitespace>
+                        <endWithNewline></endWithNewline>
                         <indent>
                             <tabs>false</tabs>
                             <spaces>true</spaces>
                             <spacesPerTab>4</spacesPerTab>
                         </indent>
-                        <palantirJavaFormat/>
+                        <palantirJavaFormat></palantirJavaFormat>
                         <licenseHeader>
                             <file>${project.root.basedir}/license-header-java.txt</file>
                         </licenseHeader>
                     </java>
+<!--
+                    <pom>
+                        <sortPom>
+                            <nrOfIndentSpace>4</nrOfIndentSpace>
+                            &lt;!&ndash; see https://github.com/diffplug/spotless/blob/main/plugin-maven/README.md#sortpom &ndash;&gt;
+                        </sortPom>
+                    </pom>
+-->
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>spotless</id>
+                        <goals>
+                            <goal>apply</goal>
+                        </goals>
+                        <phase>generate-sources</phase>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
-
-        <pluginManagement>
-            <plugins>
-                <plugin>
-                    <groupId>org.apache.maven.plugins</groupId>
-                    <artifactId>maven-surefire-plugin</artifactId>
-                    <version>3.2.5</version>
-                    <executions>
-                        <execution>
-                            <id>default-test</id>
-                            <goals>
-                                <goal>test</goal>
-                            </goals>
-                            <phase>test</phase>
-                            <configuration>
-                                <trimStackTrace>false</trimStackTrace>
-                                <skipTests>${skipTests}</skipTests>
-                            </configuration>
-                        </execution>
-                    </executions>
-                </plugin>
-            </plugins>
-
-        </pluginManagement>
 
     </build>
 

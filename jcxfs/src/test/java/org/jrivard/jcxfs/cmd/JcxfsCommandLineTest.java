@@ -14,26 +14,14 @@
  * limitations under the License.
  */
 
-package org.jrivard.jcxfs.xodusfs;
+package org.jrivard.jcxfs.cmd;
 
-import jetbrains.exodus.env.StoreConfig;
+import org.junit.jupiter.api.Test;
+import picocli.CommandLine;
 
-enum XodusStore {
-    DATA(StoreConfig.WITHOUT_DUPLICATES),
-    DATA_LENGTH(StoreConfig.WITHOUT_DUPLICATES),
-    PATH(StoreConfig.WITH_DUPLICATES),
-    INODE(StoreConfig.WITHOUT_DUPLICATES),
-    INODE_META(StoreConfig.WITHOUT_DUPLICATES),
-    XODUS_META(StoreConfig.WITHOUT_DUPLICATES),
-    ;
-
-    private final StoreConfig storeConfig;
-
-    XodusStore(final StoreConfig storeConfig) {
-        this.storeConfig = storeConfig;
-    }
-
-    public StoreConfig getStoreConfig() {
-        return storeConfig;
+class JcxfsCommandLineTest {
+    @Test
+    public void testCommandLineRuntimeCompilation() {
+        new CommandLine(new JcxfsCommandLine());
     }
 }

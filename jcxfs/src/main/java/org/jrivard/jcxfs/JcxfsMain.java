@@ -17,12 +17,10 @@
 package org.jrivard.jcxfs;
 
 import org.jrivard.jcxfs.cmd.JcxfsCommandLine;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
 public final class JcxfsMain {
-    private static final Logger LOG = LoggerFactory.getLogger(JcxfsMain.class);
+    private static final JcxfsLogger LOGGER = JcxfsLogger.getLogger(JcxfsMain.class);
 
     public static void main(final String[] args) {
         try {
@@ -34,12 +32,17 @@ public final class JcxfsMain {
                 commandLine.usage(System.out);
             } else {
                 final int resultCode = commandLine.execute(args);
+                if (resultCode == 0) {
+                    LOGGER.debug(() -> "normal exit");
+                } else {
+                    LOGGER.debug(() -> "exit with error " + resultCode);
+                }
                 System.exit(resultCode);
             }
         } catch (final Exception e) {
             final String errorMsg = "error: " + e.getMessage();
             System.err.println(errorMsg);
-            LOG.error(errorMsg, e);
+            LOGGER.error(() -> errorMsg, e);
             System.exit(-1);
         }
     }

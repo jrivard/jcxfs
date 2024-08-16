@@ -40,15 +40,22 @@ record PathRecord(long id, String name) {
         final String stringInput = StringBinding.entryToString(byteIterable);
         Objects.requireNonNull(stringInput);
 
-        final String[] splitString = stringInput.split(SEPARATOR);
-        if (splitString.length < 3) {
+        final int FIRST_INDEX = stringInput.indexOf(SEPARATOR);
+        final int SECOND_INDEX = stringInput.indexOf(SEPARATOR, FIRST_INDEX + 1);
+        if (FIRST_INDEX <= 0 || SECOND_INDEX <= 0) {
             throw new IllegalArgumentException("deserialized record missing components");
         }
-        if (!VERSION.equals(splitString[0])) {
-            throw new IllegalArgumentException("deserialized record version not recognized");
+
+        {
+            final String versionSegment = stringInput.substring(0, FIRST_INDEX);
+            if (!VERSION.equals(versionSegment)) {
+                throw new IllegalArgumentException("deserialized record version not recognized");
+            }
         }
-        final long id = Long.decode('#' + splitString[1]);
-        final String name = splitString[2];
+
+        final String idSegment = stringInput.substring(FIRST_INDEX + 1, SECOND_INDEX);
+        final long id = Long.decode('#' + idSegment);
+        final String name = stringInput.substring(SECOND_INDEX + 1);
         return new PathRecord(id, name);
     }
 

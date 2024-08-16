@@ -17,12 +17,10 @@
 package org.jrivard.jcxfs.cmd;
 
 import java.io.PrintWriter;
-import java.nio.file.Path;
 import org.jrivard.jcxfs.JcxfsConsoleWriter;
 import org.jrivard.jcxfs.LogUtil;
 import org.jrivard.jcxfs.VersionUtil;
 import org.jrivard.jcxfs.xodusfs.JcxfsException;
-import org.jrivard.jcxfs.xodusfs.XodusFsConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.AutoComplete;
@@ -34,8 +32,10 @@ import picocli.CommandLine;
         subcommands = {
             InitCommand.class,
             MountCommand.class,
-            StatsCommand.class,
+            DumpCommand.class,
+            ChangePasswordCommand.class,
             AutoComplete.GenerateCompletion.class,
+            TestCommand.class,
             CommandLine.HelpCommand.class,
         },
         mixinStandardHelpOptions = true,
@@ -44,34 +44,23 @@ import picocli.CommandLine;
 public class JcxfsCommandLine {
     private static final Logger LOGGER = LoggerFactory.getLogger(JcxfsCommandLine.class);
 
-    @CommandLine.ParentCommand
-    JcxfsCommandLine parentCommand;
-
     @CommandLine.Spec
     CommandLine.Model.CommandSpec spec;
 
     @CommandLine.Option(
-            names = {"--log-level"},
+            names = {"-log-level"},
             defaultValue = "NONE",
             paramLabel = "level",
-            description = "set log level")
+            description = "set log level",
+            scope = CommandLine.ScopeType.INHERIT)
     private LogUtil.LogLevel logLevel;
 
     @CommandLine.Option(
-            names = {"--log-file"},
+            names = {"-log-file"},
             paramLabel = "filename",
-            description = "log file to append to")
+            description = "log file to append to",
+            scope = CommandLine.ScopeType.INHERIT)
     private String logFile;
-
-    @CommandLine.Option(names = "-db", paramLabel = "dbPath", description = "path to database", required = true)
-    private String dbPath;
-
-    @CommandLine.ArgGroup(multiplicity = "1")
-    PasswordOptionSubCommand passwordOptionSubCommand;
-
-    XodusFsConfig toXodusConfig() throws JcxfsException {
-        return new XodusFsConfig(Path.of(dbPath), passwordOptionSubCommand.effectivePassword());
-    }
 
     protected void init() {
         LogUtil.initLogging(logLevel, logFile);

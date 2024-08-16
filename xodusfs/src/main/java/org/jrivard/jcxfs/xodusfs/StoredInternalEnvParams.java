@@ -16,12 +16,4 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
-import java.nio.file.Path;
-import java.util.Objects;
-
-public record XodusFsConfig(Path path, String password) {
-    public XodusFsConfig {
-        Objects.requireNonNull(path);
-        Objects.requireNonNull(password);
-    }
-}
+record StoredInternalEnvParams(int version, int pageSize) {}

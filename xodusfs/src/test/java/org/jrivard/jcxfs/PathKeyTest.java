@@ -16,6 +16,7 @@
 
 package org.jrivard.jcxfs;
 
+import java.util.List;
 import org.jrivard.jcxfs.xodusfs.PathKey;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
@@ -35,10 +36,26 @@ public class PathKeyTest {
     }
 
     @Test
+    public void segments() {
+        final String path = "/amb/.java/.userPrefs/jetbrains/_";
+        final PathKey pathKey = PathKey.of(path);
+        final List<String> segments = pathKey.segments();
+        Assertions.assertEquals("amb", segments.get(0));
+        Assertions.assertEquals(".java", segments.get(1));
+        Assertions.assertEquals(".userPrefs", segments.get(2));
+        Assertions.assertEquals("jetbrains", segments.get(3));
+        Assertions.assertEquals("_", segments.get(4));
+    }
+
+    @Test
     public void verifyPathSyntax() {
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad/../bad"));
 
         Assertions.assertDoesNotThrow(() -> PathKey.of("/"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("//"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("///"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("//good"));
+        Assertions.assertDoesNotThrow(() -> PathKey.of("///good"));
         Assertions.assertDoesNotThrow(() -> PathKey.of("/good"));
         Assertions.assertDoesNotThrow(() -> PathKey.of("/good/good"));
         Assertions.assertDoesNotThrow(() -> PathKey.of("/good/.good./good"));
@@ -49,7 +66,7 @@ public class PathKeyTest {
         Assertions.assertDoesNotThrow(() -> PathKey.of("/good/good/good.."));
 
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of(""));
-        Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("//"));
+        Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("bad"));
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad/"));
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad//"));
         Assertions.assertThrows(IllegalArgumentException.class, () -> PathKey.of("/bad//bad"));

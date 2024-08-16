@@ -23,22 +23,24 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.HexFormat;
 import java.util.Properties;
+import org.jrivard.jcxfs.xodusfs.cipher.ArgonAuthMachine;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 
-public record EnvParams(long iv, String cipherClass, String passwordClass) {
+record StoredExternalEnvParams(long iv, String cipherClass, String authClass, String authData) {
 
-    private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(EnvParams.class);
+    private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(StoredExternalEnvParams.class);
 
     private static final String FILE_NAME = "jcxfs.env";
 
     private static final String KEY_IV = "iv";
     private static final String KEY_CIPHER_CLASS = "cipher_class";
-    private static final String KEY_PASSWORD_CLASS = "password_class";
+    private static final String KEY_AUTH_CLASS = "auth_class";
+    private static final String KEY_AUTH_DATA = "auth_data";
 
     private static final String COMMENT =
             "Parameters for jcxfs database.  The database can not be opened if this file is modified or removed.";
 
-    public EnvParams {
+    public StoredExternalEnvParams {
         if (iv == 0) {
             throw new IllegalStateException("non-zero iv value required");
         }
@@ -47,8 +49,8 @@ public record EnvParams(long iv, String cipherClass, String passwordClass) {
             cipherClass = "jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider";
         }
 
-        if (passwordClass == null || passwordClass.isEmpty()) {
-            passwordClass = ArgonGenerator.class.getName();
+        if (authClass == null || authClass.isEmpty()) {
+            authClass = ArgonAuthMachine.class.getName();
         }
     }
 
@@ -57,14 +59,15 @@ public record EnvParams(long iv, String cipherClass, String passwordClass) {
 
         props.setProperty(KEY_IV, HexFormat.of().toHexDigits(iv));
         props.setProperty(KEY_CIPHER_CLASS, cipherClass);
-        props.setProperty(KEY_PASSWORD_CLASS, passwordClass);
+        props.setProperty(KEY_AUTH_CLASS, authClass);
+        props.setProperty(KEY_AUTH_DATA, authData);
 
         try (final OutputStream os = Files.newOutputStream(directoryPath.resolve(FILE_NAME))) {
             props.store(os, COMMENT);
         }
     }
 
-    public static EnvParams readFromFile(final Path directoryPath) throws JcxfsException {
+    public static StoredExternalEnvParams readFromFile(final Path directoryPath) throws JcxfsException {
 
         final Path filePath = directoryPath.resolve(FILE_NAME);
         if (!Files.exists(filePath)) {
@@ -73,10 +76,11 @@ public record EnvParams(long iv, String cipherClass, String passwordClass) {
         try (final InputStream os = Files.newInputStream(filePath)) {
             final Properties props = new Properties();
             props.load(os);
-            return new EnvParams(
+            return new StoredExternalEnvParams(
                     HexFormat.fromHexDigitsToLong(props.getProperty(KEY_IV)),
                     props.getProperty(KEY_CIPHER_CLASS),
-                    props.getProperty(KEY_PASSWORD_CLASS));
+                    props.getProperty(KEY_AUTH_CLASS),
+                    props.getProperty(KEY_AUTH_DATA));
 
         } catch (final Exception e) {
             throw new JcxfsException("init: error reading " + FILE_NAME + ", error: " + e.getMessage(), e);

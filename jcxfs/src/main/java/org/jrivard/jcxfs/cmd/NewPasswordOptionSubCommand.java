@@ -22,27 +22,26 @@ import java.nio.file.Files;
 import org.jrivard.jcxfs.xodusfs.JcxfsException;
 import picocli.CommandLine;
 
-@CommandLine.Command(mixinStandardHelpOptions = false) // add --help and --version to all commands that have this mixin
-public class PasswordOptionSubCommand {
+public class NewPasswordOptionSubCommand {
     @CommandLine.Option(
-            names = "-pw",
+            names = "-new-pw",
             converter = PasswordString.Converter.class,
-            paramLabel = "password",
-            description = "password")
+            paramLabel = "new password",
+            description = "new password")
     PasswordString cliPw;
 
     @CommandLine.Option(
-            names = "-W",
+            names = "-new-W",
             converter = PasswordString.Converter.class,
-            paramLabel = "password prompt",
+            paramLabel = "new password",
             interactive = true,
             description = "prompt for new password")
     PasswordString consolePW;
 
     @CommandLine.Option(
-            names = "--pw-file",
-            description = "file to read password from",
-            paramLabel = "password_filename")
+            names = "--new-pw-file",
+            description = "file to read new password from",
+            paramLabel = "new_password_filename")
     String pwFile;
 
     String effectivePassword() throws JcxfsException {
@@ -50,7 +49,7 @@ public class PasswordOptionSubCommand {
             try {
                 return Files.readString(new File(pwFile).toPath());
             } catch (final IOException e) {
-                throw new JcxfsException("unable to read password option file: " + e.getMessage(), e);
+                throw new JcxfsException("unable to read new password option file: " + e.getMessage(), e);
             }
         }
 

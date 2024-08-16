@@ -1,18 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.jrivard</groupId>
         <artifactId>jcxfs-parent</artifactId>
-        <version>0.0.2-SNAPSHOT</version>
+        <version>0.0.3</version>
     </parent>
 
     <artifactId>jcxfs</artifactId>
 
     <packaging>jar</packaging>
+    <name>Jcxfs - Command Line tool</name>
 
     <url>https://github.com/jrivard/jcxfs</url>
-    <name>Jcxfs - Command Line tool</name>
 
     <licenses>
         <license>
@@ -36,15 +37,6 @@
         <skipSpotbugs>false</skipSpotbugs>
     </properties>
 
-    <profiles>
-        <profile>
-            <id>skip-tests</id>
-            <properties>
-                <skipTests>true</skipTests>
-            </properties>
-        </profile>
-    </profiles>
-
     <dependencies>
         <dependency>
             <groupId>org.cryptomator</groupId>
@@ -55,7 +47,7 @@
         <dependency>
             <groupId>org.jrivard</groupId>
             <artifactId>xodusfs</artifactId>
-            <version>0.0.2-SNAPSHOT</version>
+            <version>0.0.3</version>
         </dependency>
 
         <dependency>
@@ -68,17 +60,18 @@
             <artifactId>logback-classic</artifactId>
             <version>1.5.6</version>
         </dependency>
+        <!--
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>2.1.0-alpha1</version>
         </dependency>
+        -->
         <dependency>
             <groupId>com.google.code.gson</groupId>
             <artifactId>gson</artifactId>
             <version>2.11.0</version>
         </dependency>
-
 
         <!-- Test dependencies -->
         <dependency>
@@ -186,6 +179,13 @@
                                     </excludes>
                                 </filter>
                             </filters>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>ch.qos.logback:logback-core</exclude>
+                                    <exclude>ch.qos.logback:logback-classic</exclude>
+                                    <exclude>org.slf4j:slf4j-api</exclude>
+                                </excludes>
+                            </artifactSet>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>org.jrivard.jcxfs.JcxfsMain</mainClass>
@@ -243,5 +243,14 @@
 
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>skip-tests</id>
+            <properties>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

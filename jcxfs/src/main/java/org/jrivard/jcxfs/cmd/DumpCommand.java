@@ -16,27 +16,23 @@
 
 package org.jrivard.jcxfs.cmd;
 
+import java.io.PrintWriter;
 import org.jrivard.jcxfs.JcxfsLogger;
-import org.jrivard.jcxfs.xodusfs.XodusFsConfig;
+import org.jrivard.jcxfs.xodusfs.RuntimeParameters;
 import org.jrivard.jcxfs.xodusfs.XodusFsUtils;
 import picocli.CommandLine;
 
-import java.io.PrintWriter;
+@CommandLine.Command(name = "dump", description = "get debug info about a repository")
+public class DumpCommand extends AbstractCommandRunnable {
+    private static final JcxfsLogger LOGGER = JcxfsLogger.getLogger(DumpCommand.class);
 
-@CommandLine.Command(name = "stats", description = "get debug info about a repository")
-public class StatsCommand extends AbstractCommandRunnable {
-    private static final JcxfsLogger LOG = JcxfsLogger.getLogger(StatsCommand.class);
-
-    @CommandLine.ParentCommand
-    private JcxfsCommandLine parentCommand;
+    @CommandLine.Mixin
+    private XodusDbOptions commonOptions = new XodusDbOptions();
 
     public int execute(final CommandContext commandContext) throws Exception {
-        LOG.trace(() -> "beginning stats command");
+        LOGGER.trace(() -> "beginning dump command");
 
-        // System.out.println("Press any key to begin");
-        // new Scanner(System.in).nextLine();
-
-        final XodusFsConfig xodusFsConfig = parentCommand.toXodusConfig();
+        final RuntimeParameters xodusFsConfig = commonOptions.toRuntimeParams();
 
         try (final PrintWriter writer = new PrintWriter(System.out)) {
             XodusFsUtils.printStats(xodusFsConfig, writer);

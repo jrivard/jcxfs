@@ -22,8 +22,16 @@ import org.junit.jupiter.api.Test;
 
 public class PathRecordTest {
     @Test
-    void testSerialization() {
+    void testSerialization1() {
         final PathRecord pathRecord = new PathRecord(4, "file1");
+        final ByteIterable byteIterable = pathRecord.toByteIterable();
+        final PathRecord deserializedByteIterable = PathRecord.fromByteIterable(byteIterable);
+        Assertions.assertEquals(pathRecord, deserializedByteIterable);
+    }
+
+    @Test
+    void testSerialization2() {
+        final PathRecord pathRecord = new PathRecord(4, "file1!DSA#@!EFDSFSD!@#NFDSF!N@#GB!@#!");
         final ByteIterable byteIterable = pathRecord.toByteIterable();
         final PathRecord deserializedByteIterable = PathRecord.fromByteIterable(byteIterable);
         Assertions.assertEquals(pathRecord, deserializedByteIterable);

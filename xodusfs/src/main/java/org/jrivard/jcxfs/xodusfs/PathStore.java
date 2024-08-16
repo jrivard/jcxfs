@@ -16,6 +16,8 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -23,19 +25,29 @@ import java.util.stream.Stream;
 import jetbrains.exodus.ByteIterable;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
+import org.jrivard.jcxfs.xodusfs.util.StatCounterBundle;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 
 class PathStore implements StoreBucket {
     private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(PathStore.class);
 
     private final Store pathStore;
-    private Store pathCacheStore;
     private final EnvironmentWrapper environmentWrapper;
+    private final Cache<String, Long> pathCache;
+
+    private final StatCounterBundle<PathStoreDebugStats> stats = new StatCounterBundle<>(PathStoreDebugStats.class);
+
+    public enum PathStoreDebugStats {
+        pathRecordCreates,
+        pathRecordDeletes,
+        pathRecordRenames,
+        pathRecordReads,
+    }
 
     public PathStore(final EnvironmentWrapper environmentWrapper) {
         this.environmentWrapper = environmentWrapper;
         pathStore = environmentWrapper.getStore(XodusStore.PATH);
-        pathCacheStore = environmentWrapper.getStore(XodusStore.PATH_CACHE);
+        pathCache = StoreBucket.makeCache(environmentWrapper);
     }
 
     private void validatePathKeyForWrite(final PathKey pathKey) {
@@ -45,16 +57,17 @@ class PathStore implements StoreBucket {
     }
 
     public long readEntry(final Transaction txn, final PathKey path) {
-        final ByteIterable cachedValue = pathCacheStore.get(txn, path.toByteIterable());
+        final Long cachedValue = pathCache.getIfPresent(path.path());
         if (cachedValue != null) {
-            return InodeId.byteIterableToInodeId(cachedValue);
+            return cachedValue;
         }
         final long readValue = readEntryImpl(txn, path);
         if (readValue > 0) {
-            pathCacheStore.put(txn, path.toByteIterable(), InodeId.inodeIdToByteIterable(readValue));
-            LOGGER.debug(() ->
+            pathCache.put(path.path(), readValue);
+            LOGGER.trace(() ->
                     "created db-cache entry for path '" + path.path() + "', id=" + InodeId.prettyPrint(readValue));
         }
+        stats.increment(PathStoreDebugStats.pathRecordReads);
         return readValue;
     }
 
@@ -84,21 +97,29 @@ class PathStore implements StoreBucket {
         return segmentId;
     }
 
+    @Override
+    public void close() {}
+
     public void createEntry(final Transaction txn, final PathKey path, final long inodeId) {
+
         validatePathKeyForWrite(path);
 
         if (readEntry(txn, path) > 0) {
             throw RuntimeXodusFsException.of(FileOpError.FILE_EXISTS, "path already exists exist");
         }
 
-        final PathKey parentPath = path.parent();
-        final long parentId = readEntry(txn, parentPath);
+        final long parentId = readEntry(txn, path.parent());
         if (parentId <= 0) {
             throw RuntimeXodusFsException.of(FileOpError.NO_SUCH_DIR, "parent path does not exist");
         }
 
         final PathRecord pathRecord = new PathRecord(inodeId, path.suffix());
         pathStore.put(txn, InodeId.inodeIdToByteIterable(parentId), pathRecord.toByteIterable());
+        stats.increment(PathStoreDebugStats.pathRecordCreates);
+    }
+
+    public long size(final Transaction txn) {
+        return pathStore.count(txn);
     }
 
     public void removeEntry(final Transaction txn, final PathKey path) {
@@ -119,12 +140,18 @@ class PathStore implements StoreBucket {
         final long parentId = readEntry(txn, path.parent());
         final ByteIterable parentKey = InodeId.inodeIdToByteIterable(parentId);
         final PathRecord pathRecord = new PathRecord(pathId, path.suffix());
-        pathCacheStore.delete(txn, path.toByteIterable());
+        pathCache.invalidate(path.path());
         try {
-            environmentWrapper.removeKeyValue(txn, XodusStore.PATH, parentKey, pathRecord.toByteIterable());
+            final boolean removed =
+                    environmentWrapper.removeKeyValue(txn, XodusStore.PATH, parentKey, pathRecord.toByteIterable());
+            if (!removed) {
+                throw RuntimeXodusFsException.of(
+                        FileOpError.IO_ERROR, "error removing entry, unable to detach from parent entry");
+            }
         } catch (final FileOpException e) {
             throw RuntimeXodusFsException.of(e.getError(), e.getMessage());
         }
+        stats.increment(PathStoreDebugStats.pathRecordDeletes);
     }
 
     public Stream<String> readSubPaths(final Transaction txn, final PathKey path) {
@@ -166,57 +193,61 @@ class PathStore implements StoreBucket {
 
         removeEntryImpl(txn, oldPath, false);
         createEntry(txn, newPath, oldPathId);
+        stats.increment(PathStoreDebugStats.pathRecordRenames);
+
         if (invalidatesCache) {
-            final long cacheCount = pathCacheStore.count(txn);
-            environmentWrapper.truncateStore(txn, XodusStore.PATH_CACHE);
-            pathCacheStore = environmentWrapper.getStore(XodusStore.PATH_CACHE);
+            final long cacheCount = pathCache.estimatedSize();
+            pathCache.invalidateAll();
             LOGGER.debug(() -> "purged " + cacheCount + " records from db-cache");
         }
+    }
+
+    @Override
+    public Map<String, String> runtimeStats() {
+        return stats.debugStats();
     }
 
     private class DebugOutputter {
 
         private final Transaction transaction;
-        private final XodusDebugWriter output;
+        private final XodusConsoleWriter output;
 
-        public DebugOutputter(final Transaction transaction, final XodusDebugWriter output) {
+        public DebugOutputter(final Transaction transaction, final XodusConsoleWriter output) {
             this.transaction = transaction;
             this.output = output;
         }
 
         public void printStats() {
+            output.writeLine("PathStore Dump Output: ");
             environmentWrapper.forEach(transaction, XodusStore.PATH, byteIterableByteIterableEntry -> {
                 final Map.Entry<Long, PathRecord> parsedEntry = convertPathMapEntry(byteIterableByteIterableEntry);
                 printPathEntryDebug(parsedEntry, output);
+                output.writeLine(" key="
+                        + HexFormat.of()
+                                .formatHex(
+                                        byteIterableByteIterableEntry.getKey().getBytesUnsafe())
+                        + " value="
+                        + HexFormat.of()
+                                .formatHex(
+                                        byteIterableByteIterableEntry.getValue().getBytesUnsafe()));
             });
         }
 
-        private void printPathEntryDebug(final Map.Entry<Long, PathRecord> entry, final XodusDebugWriter writer) {
+        private void printPathEntryDebug(final Map.Entry<Long, PathRecord> entry, final XodusConsoleWriter writer) {
             final long id = entry.getKey();
             final PathRecord pathRecord = entry.getValue();
             writer.writeLine(" id=" + InodeId.prettyPrint(id) + " child record: id="
                     + InodeId.prettyPrint(pathRecord.id()) + " name='" + pathRecord.name() + "'");
-
-            /*try {
-                       environmentWrapper.doExecute(txn -> {
-                           try (final Stream<String> subpathStream = readSubPaths(txn, pathKey)) {
-                               subpathStream.forEach(subPath -> {
-                                   writer.writeLine("   subpath: " + subPath);
-                               });
-                           }
-                       });
-                   } catch (final FileOpException e) {
-                       throw new RuntimeException(e);
-                   }
-            */ }
+        }
 
         static Map.Entry<Long, PathRecord> convertPathMapEntry(final Map.Entry<ByteIterable, ByteIterable> entry) {
-            return Map.entry(
-                    InodeId.byteIterableToInodeId(entry.getValue()), PathRecord.fromByteIterable(entry.getKey()));
+            final long id = InodeId.byteIterableToInodeId(entry.getKey());
+            final PathRecord pathRecord = PathRecord.fromByteIterable(entry.getValue());
+            return Map.entry(id, pathRecord);
         }
     }
 
-    public void printStats(final XodusDebugWriter writer) {
+    public void printDumpOutput(final XodusConsoleWriter writer) {
 
         try {
             environmentWrapper.doExecute(txn -> {

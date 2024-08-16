@@ -161,9 +161,17 @@ public final class LogUtil {
     }
 
     public static void initLogback(final LogLevel logLevel, final String logFile) {
+
+        System.setProperty("org.slf4j.simpleLogger.showInitializationMessages", "false");
+
         // Get the logger context
         final LoggerContext context = (LoggerContext) LoggerFactory.getILoggerFactory();
+        context.getStatusManager().clear();
+        context.putProperty("org.slf4j.simpleLogger.showInitializationMessages", "false");
+        context.putProperty("org.slf4j.simpleLogger.defaultLogLevel", "error");
+
         final ch.qos.logback.classic.Logger rootLogger = context.getLogger(Logger.ROOT_LOGGER_NAME);
+        rootLogger.getLoggerContext().getStatusManager().clear();
 
         // Create a console appender
         final OutputStreamAppender<ILoggingEvent> appender;
@@ -185,7 +193,7 @@ public final class LogUtil {
         appender.setEncoder(encoder);
         appender.start();
 
-        appender.addFilter(new SampleFilter());
+        appender.addFilter(new BlockUselessXodusExceptionFilter());
 
         // Set appender level to TRACE
         // Configure logger level through the logger context
@@ -195,14 +203,14 @@ public final class LogUtil {
     }
 
     // filter to block xodus exception that gets logged
-
-    public static class SampleFilter extends Filter<ILoggingEvent> {
+    // https://youtrack.jetbrains.com/issue/XD-856/Xodus-2.0.1-logs-an-exception-stack-trace-during-startup-when-running-under-JDK-17
+    private static class BlockUselessXodusExceptionFilter extends Filter<ILoggingEvent> {
         private static final String msg =
                 "Unable to make public void sun.nio.ch.FileChannelImpl.setUninterruptible() accessible:"
                         + " module java.base does not \"exports sun.nio.ch\" to unnamed module";
         private static final Class<?> exceptionClass = InaccessibleObjectException.class;
 
-        public SampleFilter() {}
+        public BlockUselessXodusExceptionFilter() {}
 
         @Override
         public FilterReply decide(final ILoggingEvent event) {
@@ -211,11 +219,10 @@ public final class LogUtil {
                 return FilterReply.NEUTRAL;
             }
 
-            if (!(throwableProxy instanceof ThrowableProxy)) {
+            if (!(throwableProxy instanceof final ThrowableProxy throwableProxyImpl)) {
                 return FilterReply.NEUTRAL;
             }
 
-            final ThrowableProxy throwableProxyImpl = (ThrowableProxy) throwableProxy;
             final Throwable throwable = throwableProxyImpl.getThrowable();
             if (exceptionClass.isInstance(throwable) && throwable.getMessage().startsWith(msg)) {
                 return FilterReply.DENY;

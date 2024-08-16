@@ -18,6 +18,8 @@ package org.jrivard.jcxfs.xodusfs.util;
 
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Map;
 
 public final class JavaUtil {
     public static String padRight(final String input, final int length, final char appendChar) {
@@ -75,5 +77,32 @@ public final class JavaUtil {
             }
         }
         return suffixNulls;
+    }
+
+    public static <K, V> String mapToString(final Map<K, V> map) {
+        return mapToString(map, "=", ", ");
+    }
+
+    public static <K, V> String mapToString(
+            final Map<K, V> map, final String keyValueSeparator, final String recordSeparator) {
+        final StringBuilder sb = new StringBuilder();
+        for (final Iterator<Map.Entry<K, V>> iterator = map.entrySet().iterator(); iterator.hasNext(); ) {
+            final Map.Entry<K, V> entry = iterator.next();
+            if (entry.getKey() != null && entry.getValue() != null) {
+                final String key = entry.getKey().toString().trim();
+                final String value = entry.getValue().toString().trim();
+
+                if (!key.isEmpty() && !value.isEmpty()) {
+                    sb.append(key);
+                    sb.append(keyValueSeparator);
+                    sb.append(value);
+
+                    if (iterator.hasNext()) {
+                        sb.append(recordSeparator);
+                    }
+                }
+            }
+        }
+        return sb.toString();
     }
 }

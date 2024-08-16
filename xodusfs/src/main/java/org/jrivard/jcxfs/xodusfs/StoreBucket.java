@@ -16,6 +16,23 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import java.util.Map;
+import jetbrains.exodus.env.Transaction;
+
 interface StoreBucket {
-    void printStats(XodusDebugWriter writer);
+    int CACHE_MAX_ITEMS = 1000;
+
+    void printDumpOutput(XodusConsoleWriter writer);
+
+    Map<String, String> runtimeStats();
+
+    long size(final Transaction txn);
+
+    void close();
+
+    static <K, V> Cache<K, V> makeCache(final EnvironmentWrapper environmentWrapper) {
+        return Caffeine.newBuilder().maximumSize(CACHE_MAX_ITEMS).build();
+    }
 }

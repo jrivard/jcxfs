@@ -20,6 +20,7 @@ import com.google.gson.annotations.SerializedName;
 import java.time.Instant;
 import java.util.EnumSet;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.function.IntPredicate;
 import jetbrains.exodus.ByteIterable;
@@ -38,10 +39,10 @@ public record InodeEntry(
 
     private static final Set<Type> ALL_TYPES = EnumSet.allOf(Type.class);
 
-    private enum Type {
-        DIR(Stat.S_ISDIR, Stat.S_IFDIR, Stat.S_IFDIR | 0755),
-        FILE(Stat.S_ISREG, Stat.S_IFREG, Stat.S_IFREG | 0444),
-        LINK(Stat.S_ISLNK, Stat.S_IFLNK, Stat.S_IFLNK | 0444),
+    enum Type {
+        DIR(FuseFileStat.S_ISDIR, FuseFileStat.S_IFDIR, FuseFileStat.S_IFDIR | 0755),
+        FILE(FuseFileStat.S_ISREG, FuseFileStat.S_IFREG, FuseFileStat.S_IFREG | 0444),
+        LINK(FuseFileStat.S_ISLNK, FuseFileStat.S_IFLNK, FuseFileStat.S_IFLNK | 0444),
         ;
 
         private final IntPredicate predicate;
@@ -141,6 +142,15 @@ public record InodeEntry(
         return StringBinding.stringToEntry(json);
     }
 
+    public Optional<Type> type() {
+        for (final Type type : Type.values()) {
+            if (type.test(mode)) {
+                return Optional.of(type);
+            }
+        }
+        return Optional.empty();
+    }
+
     public boolean isDirectory() {
         return Type.DIR.test(mode);
     }
@@ -151,5 +161,72 @@ public record InodeEntry(
 
     public boolean isLink() {
         return Type.LINK.test(mode);
+    }
+
+    /**
+     * From FuseAPI
+     */
+    private interface FuseFileStat {
+        int S_IFMT = 61440;
+        int S_IFSOCK = 49152;
+        int S_IFLNK = 40960;
+        int S_IFREG = 32768;
+        int S_IFBLK = 24576;
+        int S_IFDIR = 16384;
+        int S_IFCHR = 8192;
+        int S_IFIFO = 4096;
+        IntPredicate S_ISREG = (m) -> {
+            return (m & '\uf000') == 32768;
+        };
+        IntPredicate S_ISDIR = (m) -> {
+            return (m & '\uf000') == 16384;
+        };
+        IntPredicate S_ISCHR = (m) -> {
+            return (m & '\uf000') == 8192;
+        };
+        IntPredicate S_ISBLK = (m) -> {
+            return (m & '\uf000') == 24576;
+        };
+        IntPredicate S_ISFIFO = (m) -> {
+            return (m & '\uf000') == 4096;
+        };
+        IntPredicate S_ISLNK = (m) -> {
+            return (m & '\uf000') == 40960;
+        };
+        IntPredicate S_ISSOCK = (m) -> {
+            return (m & '\uf000') == 49152;
+        };
+
+        void setMode(int var1);
+
+        int getMode();
+
+        void setUid(int var1);
+
+        int getUid();
+
+        void setGid(int var1);
+
+        int getGid();
+
+        void setNLink(short var1);
+
+        long getNLink();
+
+        void setSize(long var1);
+
+        long getSize();
+
+        default boolean hasMode(final int mask) {
+            return (this.getMode() & mask) == mask;
+        }
+
+        default void setModeBits(final int mask) {
+            this.setMode(this.getMode() | mask);
+        }
+
+        default void unsetModeBits(final int mask) {
+            this.setMode(this.getMode() & ~mask);
+        }
     }
 }

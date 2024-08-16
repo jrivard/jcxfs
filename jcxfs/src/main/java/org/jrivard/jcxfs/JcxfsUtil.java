@@ -16,44 +16,43 @@
 
 package org.jrivard.jcxfs;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.Objects;
 import org.cryptomator.jfuse.api.Fuse;
 import org.cryptomator.jfuse.api.FuseBuilder;
 import org.jrivard.jcxfs.fuse.JcxfsFileSystem;
 import org.jrivard.jcxfs.xodusfs.JcxfsException;
+import org.jrivard.jcxfs.xodusfs.RuntimeParameters;
 import org.jrivard.jcxfs.xodusfs.XodusFs;
-import org.jrivard.jcxfs.xodusfs.XodusFsConfig;
 import org.jrivard.jcxfs.xodusfs.XodusFsUtils;
 
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.Objects;
-
-public class JcxfsEnv implements AutoCloseable {
-    private static final JcxfsLogger LOGGER = JcxfsLogger.getLogger(JcxfsEnv.class);
+public class JcxfsUtil implements AutoCloseable {
+    private static final JcxfsLogger LOGGER = JcxfsLogger.getLogger(JcxfsUtil.class);
 
     private XodusFs xodusFs = null;
     private Fuse fuse = null;
 
-    public void start(final XodusFsConfig config, final Path fuseMountPoint) throws JcxfsException {
+    public void start(final RuntimeParameters config, final Path fuseMountPoint) throws JcxfsException {
         xodusFs = initXodusFs(config);
-        fuse = initFuseEnv(xodusFs, fuseMountPoint);
+        fuse = initFuseEnv(xodusFs, fuseMountPoint, config.readonly());
     }
 
     @Override
     public void close() throws Exception {
-        LOGGER.debug("closing xodus fs");
+        LOGGER.debug(() -> "closing xodus fs");
         xodusFs.close();
         try {
-            LOGGER.info("closing fuse");
+            LOGGER.info(() -> "closing fuse");
             fuse.close();
         } catch (final Exception e) {
-            LOGGER.error("failed to close fuse", e);
+            LOGGER.error(() -> "failed to close fuse", e);
         }
         xodusFs = null;
         fuse = null;
     }
 
-    private static XodusFs initXodusFs(final XodusFsConfig config) throws JcxfsException {
+    private static XodusFs initXodusFs(final RuntimeParameters config) throws JcxfsException {
         Objects.requireNonNull(config);
         if (!Files.exists(config.path())) {
             throw new JcxfsException("database path does not exit");
@@ -61,10 +60,12 @@ public class JcxfsEnv implements AutoCloseable {
         if (!Files.isDirectory(config.path())) {
             throw new JcxfsException("database path is not a directory");
         }
+        LOGGER.debug(() -> "opened xodusfs with params: " + config);
         return XodusFsUtils.open(config);
     }
 
-    private static Fuse initFuseEnv(final XodusFs xodusFs, final Path fuseMountPoint) throws JcxfsException {
+    private static Fuse initFuseEnv(final XodusFs xodusFs, final Path fuseMountPoint, final boolean readonly)
+            throws JcxfsException {
         Objects.requireNonNull(fuseMountPoint);
 
         try {
@@ -74,13 +75,15 @@ public class JcxfsEnv implements AutoCloseable {
                     """
                     Unable to load fuse support for your OS.  Check that the java command line has
                     native access support enabled with '--enable-native-access=ALL-UNNAMED' option.
-                    """;
+                    error detail: \""""
+                            + e.getMessage() + "\n";
+            LOGGER.debug(() -> "error loading fuse support: " + e.getMessage(), e);
             throw new JcxfsException(message, e);
         }
 
         final FuseBuilder builder = Fuse.builder();
 
-        final JcxfsFileSystem fuseOps = new JcxfsFileSystem(builder.errno(), xodusFs);
+        final JcxfsFileSystem fuseOps = new JcxfsFileSystem(builder.errno(), xodusFs, readonly);
         try {
             final Fuse fuse = builder.build(fuseOps);
             LOGGER.info(() -> "mounting at " + fuseMountPoint);

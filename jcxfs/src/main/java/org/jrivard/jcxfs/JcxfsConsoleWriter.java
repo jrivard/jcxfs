@@ -25,8 +25,9 @@ public interface JcxfsConsoleWriter {
     static JcxfsConsoleWriter forWriter(final Writer writer) {
         final JcxfsConsoleWriter xodusDebugWriter = s -> {
             try {
-                writer.append(s + "\n");
-            } catch (IOException e) {
+                writer.append(s).append("\n");
+                writer.flush();
+            } catch (final IOException e) {
                 throw new RuntimeException(e);
             }
         };

@@ -16,11 +16,12 @@
 
 package org.jrivard.jcxfs;
 
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.function.Supplier;
 import org.slf4j.ILoggerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.slf4j.spi.LoggingEventBuilder;
 
 public class JcxfsLogger {
     private final org.slf4j.Logger logbackLogger;
@@ -43,84 +44,66 @@ public class JcxfsLogger {
     }
 
     public void trace(final Supplier<String> message) {
-        log(LogUtil.LogLevel.trace, null, message);
+        log(LogUtil.LogLevel.trace, null, message, null);
+    }
+
+    public void trace(final Supplier<String> message, final Duration duration) {
+        log(LogUtil.LogLevel.trace, null, message, duration);
     }
 
     public void trace(final Supplier<String> message, final Throwable throwable) {
-        log(LogUtil.LogLevel.trace, throwable, message);
+        log(LogUtil.LogLevel.trace, throwable, message, null);
     }
 
     public void debug(final Supplier<String> message) {
-        log(LogUtil.LogLevel.debug, null, message);
+        log(LogUtil.LogLevel.debug, null, message, null);
+    }
+
+    public void debug(final Supplier<String> message, final Duration duration) {
+        log(LogUtil.LogLevel.debug, null, message, duration);
     }
 
     public void debug(final Supplier<String> message, final Throwable throwable) {
-        log(LogUtil.LogLevel.debug, throwable, message);
-    }
-
-    public void debug(final String message) {
-        log(LogUtil.LogLevel.debug, null, message);
+        log(LogUtil.LogLevel.debug, throwable, message, null);
     }
 
     public void info(final Supplier<String> message) {
-        log(LogUtil.LogLevel.info, null, message);
+        log(LogUtil.LogLevel.info, null, message, null);
     }
 
-    public void info(final String message) {
-        log(LogUtil.LogLevel.info, null, message);
-    }
-
-    public void error(final String message) {
-        log(LogUtil.LogLevel.error, null, message);
+    public void error(final Supplier<String> message) {
+        log(LogUtil.LogLevel.error, null, message, null);
     }
 
     public void error(final Supplier<String> message, final Throwable t) {
-        log(LogUtil.LogLevel.error, t, message);
+        log(LogUtil.LogLevel.error, t, message, null);
     }
 
-    public void error(final String message, final Throwable t) {
-        log(LogUtil.LogLevel.error, t, message);
-    }
-
-    private void log(final LogUtil.LogLevel logLevel, final Throwable throwable, final String message) {
-        pushToLog4j(logbackLogger, logLevel, throwable, message);
-    }
-
-    private void log(final LogUtil.LogLevel logLevel, final Throwable throwable, final Supplier<String> message) {
-        pushToLog4j(logbackLogger, logLevel, throwable, message);
-    }
-
-    private void pushToLog4j(
-            final org.slf4j.Logger slf4jLogger,
+    private void log(
             final LogUtil.LogLevel logLevel,
             final Throwable throwable,
-            final String message) {
-
-        if (!isLevel(logLevel)) {
-            return;
-        }
-
-        final LoggingEventBuilder builder = slf4jLogger
-                .makeLoggingEventBuilder(logLevel.getSlf4jLevel())
-                .setMessage(message)
-                .setCause(throwable);
-
-        builder.log();
+            final Supplier<String> message,
+            final Duration duration) {
+        pushToLog4j(logbackLogger, logLevel, throwable, message, duration);
     }
 
     private void pushToLog4j(
             final Logger slf4jLogger,
             final LogUtil.LogLevel logLevel,
             final Throwable throwable,
-            final Supplier<String> message) {
+            final Supplier<String> message,
+            final Duration duration) {
 
         if (!isLevel(logLevel)) {
             return;
         }
 
+        final Supplier<String> effectiveMessage =
+                duration == null ? message : () -> message.get() + " (" + duration.truncatedTo(ChronoUnit.MILLIS) + ")";
+
         slf4jLogger
                 .makeLoggingEventBuilder(logLevel.getSlf4jLevel())
                 .setCause(throwable)
-                .log(message);
+                .log(effectiveMessage);
     }
 }

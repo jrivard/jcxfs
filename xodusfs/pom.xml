@@ -1,18 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
         <groupId>org.jrivard</groupId>
         <artifactId>jcxfs-parent</artifactId>
-        <version>0.0.2-SNAPSHOT</version>
+        <version>0.0.3</version>
     </parent>
 
     <artifactId>xodusfs</artifactId>
 
     <packaging>jar</packaging>
+    <name>XodusFs - Xodus DB based file system implementation</name>
 
     <url>https://github.com/jrivard/jcxfs</url>
-    <name>XodusFs - Xodus DB based file system implementation</name>
 
     <licenses>
         <license>
@@ -36,24 +37,13 @@
         <skipSpotbugs>false</skipSpotbugs>
     </properties>
 
-
-    <profiles>
-        <profile>
-            <id>skip-tests</id>
-            <properties>
-                <skipTests>true</skipTests>
-            </properties>
-        </profile>
-    </profiles>
-
     <dependencies>
-        <!--
+
         <dependency>
             <groupId>org.jrivard</groupId>
             <artifactId>xodus-jpms</artifactId>
-            <version>0.0.2-SNAPSHOT</version>
-        </dependency>
-        -->
+    <version>0.0.3</version>        </dependency>
+
         <dependency>
             <groupId>org.jetbrains.xodus</groupId>
             <artifactId>xodus-utils</artifactId>
@@ -97,8 +87,11 @@
             <artifactId>gson</artifactId>
             <version>2.11.0</version>
         </dependency>
-
-
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>3.1.8</version>
+        </dependency>
 
         <!-- Test dependencies -->
         <dependency>
@@ -106,12 +99,6 @@
             <artifactId>junit-jupiter</artifactId>
             <version>5.10.1</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
-            <version>RELEASE</version>
-            <scope>compile</scope>
         </dependency>
     </dependencies>
     <build>
@@ -123,10 +110,10 @@
                 <executions>
                     <execution>
                         <id>copy-mods</id>
-                        <phase>prepare-package</phase>
                         <goals>
                             <goal>copy-dependencies</goal>
                         </goals>
+                        <phase>prepare-package</phase>
                         <configuration>
                             <includeScope>runtime</includeScope>
                             <outputDirectory>${project.build.directory}/mods</outputDirectory>
@@ -166,5 +153,14 @@
 
         </plugins>
     </build>
+
+    <profiles>
+        <profile>
+            <id>skip-tests</id>
+            <properties>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
+    </profiles>
 
 </project>

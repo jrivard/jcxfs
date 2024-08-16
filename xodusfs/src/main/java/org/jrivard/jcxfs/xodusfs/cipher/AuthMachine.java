@@ -14,25 +14,32 @@
  * limitations under the License.
  */
 
-package org.jrivard.jcxfs.xodusfs;
+package org.jrivard.jcxfs.xodusfs.cipher;
 
 import java.lang.reflect.InvocationTargetException;
 
-public interface CipherGenerator {
-    String makeCipher(String password);
+public interface AuthMachine {
 
-    static String makeCipher(final String cipherClass, final String password) throws JcxfsException {
+    void initNewEnv(String password) throws AuthException;
+
+    String readCipher(String password) throws AuthException;
+
+    void loadEnv(String state);
+
+    String storeEnv();
+
+    void changePassword(String originalPassword, String newPassword) throws AuthException;
+
+    static AuthMachine makeInstance(final String className) throws AuthException {
         try {
-            final Class<?> theClass = Class.forName(cipherClass);
-            final CipherGenerator cipherGenerator =
-                    (CipherGenerator) theClass.getDeclaredConstructor().newInstance();
-            return cipherGenerator.makeCipher(password);
+            final Class<AuthMachine> cipherClass = (Class<AuthMachine>) Class.forName(className);
+            return cipherClass.getDeclaredConstructor().newInstance();
         } catch (final InvocationTargetException
                 | InstantiationException
                 | IllegalAccessException
                 | ClassNotFoundException
                 | NoSuchMethodException e) {
-            throw new JcxfsException("error generating cipher from password " + e.getMessage(), e);
+            throw new AuthException("error generating cipher from password " + e.getMessage(), e);
         }
     }
 }

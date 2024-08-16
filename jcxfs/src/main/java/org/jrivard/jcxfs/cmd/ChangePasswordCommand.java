@@ -22,23 +22,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "init", description = "initialize new repository")
-public class InitCommand implements CommandRunnable {
+@CommandLine.Command(name = "changepassword", description = "change existing repository password")
+public class ChangePasswordCommand extends AbstractCommandRunnable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(ChangePasswordCommand.class);
 
-    @CommandLine.ParentCommand
-    protected JcxfsCommandLine parentCommand;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(InitCommand.class);
-
-    @CommandLine.Mixin
-    private InitOptions initOptions = new InitOptions();
+    @CommandLine.ArgGroup(multiplicity = "1")
+    NewPasswordOptionSubCommand newPasswordOptionSubCommand;
 
     @CommandLine.Mixin
-    private final XodusDbOptions commonOptions = new XodusDbOptions();
-
-    public final Integer call() throws Exception {
-        return parentCommand.doExecute(this);
-    }
+    private XodusDbOptions commonOptions = new XodusDbOptions();
 
     public int execute(final CommandContext commandContext) throws Exception {
 
@@ -46,15 +38,10 @@ public class InitCommand implements CommandRunnable {
 
         final RuntimeParameters xodusFsConfig = commonOptions.toRuntimeParams();
 
-        final XodusFsUtils.InitParameters initParameters = new XodusFsUtils.InitParameters(
-                xodusFsConfig.path(),
-                xodusFsConfig.password(),
-                initOptions.cipherClass.implClass(),
-                initOptions.authHash.implClass(),
-                initOptions.xodusPageSize);
+        XodusFsUtils.changePassword(
+                xodusFsConfig.path(), xodusFsConfig.password(), newPasswordOptionSubCommand.effectivePassword());
 
-        XodusFsUtils.initXodusFileStore(initParameters);
-        commandContext.consoleOutput().writeLine("xodus-db created");
+        commandContext.consoleOutput().writeLine("password change successful");
 
         return 0;
     }

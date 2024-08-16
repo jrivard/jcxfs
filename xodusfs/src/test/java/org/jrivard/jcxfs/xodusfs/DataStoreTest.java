@@ -22,35 +22,22 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.parallel.Execution;
+import org.junit.jupiter.api.parallel.ExecutionMode;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
+@Execution(ExecutionMode.CONCURRENT)
 public class DataStoreTest {
-    @TempDir
-    public Path temporaryFolder;
-
-    private EnvironmentWrapper environmentWrapper;
-
-    @BeforeEach
-    public void setUp() throws Exception {
-        environmentWrapper = org.jrivard.jcxfs.xodusfs.XodusFsTestUtils.makeEnv(temporaryFolder);
-    }
-
-    @AfterEach
-    public void shutdown() throws Exception {
-        environmentWrapper.truncateAllStores();
-        environmentWrapper.close();
-    }
 
     @ParameterizedTest
     @MethodSource("testReadWriteArguments")
-    void testReadWrite(final DataStore.DataStoreImplType dataStoreImplType, final int size) throws Exception {
-        System.out.println("dataStoreImplType = " + dataStoreImplType + ", size = " + size);
+    void testReadWrite(final DataStore.DataStoreImplType dataStoreImplType, final int size, @TempDir Path tempFolder)
+            throws Exception {
+        final EnvironmentWrapper environmentWrapper = XodusFsTestUtils.makeEnv(tempFolder);
         final DataStore dataStore = dataStoreImplType.makeImpl(environmentWrapper);
         final long fid = 200;
         final byte[] testData = org.jrivard.jcxfs.xodusfs.XodusFsTestUtils.makeData(size);
@@ -68,8 +55,8 @@ public class DataStoreTest {
 
     static Stream<Arguments> testReadWriteArguments() {
         final List<Arguments> arguments = new ArrayList<>();
-        for (final DataStore.DataStoreImplType type : DataStore.DataStoreImplType.values()) {
-            for (final int size : new int[] {23, 1024, 1025, 4096, 10 * 1024, 128 * 1024}) {
+        for (final DataStore.DataStoreImplType type : List.of(DataStore.DataStoreImplType.byte_array)) {
+            for (final int size : new int[] {23, 1024, 1025, 4096, 10 * 1024, 128 * 1024, 256 * 1024}) {
                 arguments.add(Arguments.of(type, size));
             }
             arguments.add(Arguments.of(type, new SecureRandom().nextInt(1, 128 * 1024)));

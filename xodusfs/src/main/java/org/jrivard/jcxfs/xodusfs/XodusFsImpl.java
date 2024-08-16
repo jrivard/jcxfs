@@ -17,11 +17,19 @@
 package org.jrivard.jcxfs.xodusfs;
 
 import java.nio.ByteBuffer;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.TreeMap;
 import java.util.stream.Stream;
 import jetbrains.exodus.env.Transaction;
+import org.jrivard.jcxfs.xodusfs.util.JavaUtil;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
+import org.slf4j.event.Level;
 
 class XodusFsImpl implements XodusFs {
     private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(XodusFsImpl.class);
@@ -30,21 +38,48 @@ class XodusFsImpl implements XodusFs {
     private final PathStore pathStore;
     private final InodeStore inodeStore;
     private final DataStore dataStore;
-    private final XodusFsParams xodusFsParams;
+    private final StoredInternalEnvParams xodusFsParams;
+
+    private final Timer timer = new Timer();
 
     private XodusFsImpl(
             final EnvironmentWrapper ew,
             final PathStore pathStore,
             final InodeStore inodeStore,
             final DataStore dataStore,
-            final XodusFsParams xodusFsParams) {
+            final StoredInternalEnvParams xodusFsParams) {
         this.ew = ew;
         this.pathStore = pathStore;
         this.inodeStore = inodeStore;
         this.dataStore = dataStore;
         this.xodusFsParams = xodusFsParams;
 
+        timer.scheduleAtFixedRate(
+                new TimerTask() {
+                    @Override
+                    public void run() {
+                        outputRuntimeStats();
+                    }
+                },
+                30_000,
+                120_000);
         LOGGER.debug(() -> "opened db with params: " + xodusFsParams);
+        LOGGER.info(() -> "opened with " + JavaUtil.mapToString(sizes()));
+    }
+
+    Map<String, Long> sizes() {
+        final Map<String, Long> map = new LinkedHashMap<>();
+        try {
+            ew.doExecute(txn -> {
+                map.put("Files", dataStore.size(txn));
+                map.put("Inodes", inodeStore.size(txn));
+                map.put("Paths", pathStore.size(txn));
+            });
+        } catch (final FileOpException e) {
+            LOGGER.debug(() -> "error generating file size map: " + e.getMessage(), e);
+        }
+
+        return Collections.unmodifiableMap(map);
     }
 
     static XodusFsImpl createXodusFsImpl(
@@ -52,7 +87,7 @@ class XodusFsImpl implements XodusFs {
             final PathStore pathStore,
             final InodeStore inodeStore,
             final DataStore dataStore,
-            final XodusFsParams xodusFsParams) {
+            final StoredInternalEnvParams xodusFsParams) {
         return new XodusFsImpl(ew, pathStore, inodeStore, dataStore, xodusFsParams);
     }
 
@@ -200,8 +235,27 @@ class XodusFsImpl implements XodusFs {
         });
     }
 
+    private void outputRuntimeStats() {
+        final TreeMap<String, String> outputMap = new TreeMap<>();
+        storeBuckets().forEach(bucket -> outputMap.putAll(bucket.runtimeStats()));
+        if (LOGGER.isLevel(Level.DEBUG)) {
+            LOGGER.debug("Runtime Stats:");
+            //  final int maxStatWidth =
+            outputMap.keySet().stream().mapToInt(String::length).max().orElse(0);
+            outputMap.forEach(
+                    // (key, value) -> LOGGER.debug(() -> " " + JavaUtil.padLeft(key, maxStatWidth, ' ') + "=" +
+                    // value));
+                    (key, value) -> LOGGER.debug(() -> " " + key + "=" + value));
+        }
+    }
+
     @Override
     public void close() {
+        outputRuntimeStats();
+        timer.cancel();
+        pathStore.close();
+        inodeStore.close();
+        dataStore.close();
         this.ew.close();
     }
 

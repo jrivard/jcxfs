@@ -18,34 +18,67 @@ package org.jrivard.jcxfs.cmd;
 
 import java.nio.file.Path;
 import java.util.Scanner;
-import org.jrivard.jcxfs.JcxfsEnv;
 import org.jrivard.jcxfs.JcxfsLogger;
-import org.jrivard.jcxfs.xodusfs.XodusFsConfig;
+import org.jrivard.jcxfs.JcxfsUtil;
+import org.jrivard.jcxfs.xodusfs.RuntimeParameters;
 import picocli.CommandLine;
 
 @CommandLine.Command(name = "mount", description = "mount a jcxfs database")
 public class MountCommand extends AbstractCommandRunnable {
-    private static final JcxfsLogger LOG = JcxfsLogger.getLogger(MountCommand.class);
+    private static final JcxfsLogger LOGGER = JcxfsLogger.getLogger(MountCommand.class);
 
-    @CommandLine.ParentCommand
-    private JcxfsCommandLine parentCommand;
+    @CommandLine.Mixin
+    private XodusDbOptions commonOptions = new XodusDbOptions();
 
-    @CommandLine.Parameters(arity = "1", index = "0", description = "mount point", paramLabel = "mountPoint")
+    @CommandLine.Parameters(arity = "1", index = "1", description = "mount point", paramLabel = "mountPoint")
     private String fuseMountPath;
 
+    @CommandLine.Option(
+            names = {"--noexit"},
+            paramLabel = "noexit",
+            defaultValue = "false",
+            description = "do not wait for keypress to exit")
+    private boolean noexit;
+
     public int execute(final CommandContext commandContext) throws Exception {
-        LOG.trace(() -> "beginning mount command");
+        LOGGER.trace(() -> "beginning mount command");
 
-        final JcxfsEnv jcxfsEnv = new JcxfsEnv();
+        final RuntimeParameters runtimeParameters = commonOptions.toRuntimeParams();
 
-        final XodusFsConfig xodusFsConfig = parentCommand.toXodusConfig();
-        jcxfsEnv.start(xodusFsConfig, Path.of(fuseMountPath));
-        LOG.info("waiting for keypress...");
-        System.out.println("Press any key to exit and unmount");
-        new Scanner(System.in).nextLine();
-        LOG.info("Keypress received");
-        jcxfsEnv.close();
+        final String readonlyText = runtimeParameters.readonly() ? " (readonly)" : "";
+        final String xodusPath = runtimeParameters.path().toString();
+        final String mountPath = Path.of(fuseMountPath).toString();
+
+        final JcxfsUtil jcxfsUtil = new JcxfsUtil();
+
+        jcxfsUtil.start(runtimeParameters, Path.of(fuseMountPath));
+        commandContext.consoleOutput().writeLine("mounted " + xodusPath + readonlyText + " at " + mountPath);
+
+        if (noexit) {
+            commandContext.consoleOutput().writeLine("waiting forever...");
+            LOGGER.info(() -> "waiting forever...");
+            Thread.currentThread().join();
+        } else {
+            LOGGER.debug(() -> "waiting for exit from console...");
+            waitForExitType(commandContext);
+        }
+
+        jcxfsUtil.close();
 
         return 0;
+    }
+
+    static void waitForExitType(final CommandContext commandContext) {
+        boolean exit = false;
+        while (!exit) {
+            commandContext.consoleOutput().writeLine("type \"exit\" and press enter key to exit and unmount");
+            final String line = new Scanner(System.in).nextLine();
+            if (line.toLowerCase().contains("exit")) {
+                exit = true;
+                commandContext.consoleOutput().writeLine("console line received with exit request");
+            } else {
+                commandContext.consoleOutput().writeLine("console line received but \"exit\" not in line");
+            }
+        }
     }
 }

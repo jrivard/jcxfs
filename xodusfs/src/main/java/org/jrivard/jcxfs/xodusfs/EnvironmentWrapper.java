@@ -17,9 +17,7 @@
 package org.jrivard.jcxfs.xodusfs;
 
 import java.nio.file.Path;
-import java.time.Duration;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.EnumMap;
 import java.util.Iterator;
 import java.util.Map;
@@ -36,94 +34,101 @@ import jetbrains.exodus.bindings.StringBinding;
 import jetbrains.exodus.env.Cursor;
 import jetbrains.exodus.env.Environment;
 import jetbrains.exodus.env.Store;
+import jetbrains.exodus.env.StoreConfig;
 import jetbrains.exodus.env.Transaction;
 import jetbrains.exodus.env.TransactionalComputable;
 import jetbrains.exodus.env.TransactionalExecutable;
 import org.jrivard.jcxfs.xodusfs.util.JsonUtil;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
+import org.slf4j.event.Level;
 
 public class EnvironmentWrapper {
-    private static final XodusFsLogger LOG = XodusFsLogger.getLogger(EnvironmentWrapper.class);
+    private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(EnvironmentWrapper.class);
 
     private static final ByteIterable KEY_XODUS_FS_PARAMS = StringBinding.stringToEntry("XODUS_FS_PARAMS");
 
     private final Environment environment;
-    private final XodusFsConfig config;
-    private final EnvParams envParams;
+    private final RuntimeParameters runtimeParameters;
+    private final StoredExternalEnvParams envParams;
 
     private final AtomicBoolean environmentOpen = new AtomicBoolean(true);
     private final AtomicInteger ACTIVE_OPERATIONS = new AtomicInteger(0);
     private final AtomicInteger OPEN_ITERATORS = new AtomicInteger(0);
 
-    private final EnumMap<XodusStore, Store> storeCache = new EnumMap<>(XodusStore.class);
+    private final Map<XodusStore, Store> storeCache;
 
-    private EnvironmentWrapper(final Environment environment, final XodusFsConfig config, final EnvParams envParams) {
+    private EnvironmentWrapper(
+            final Environment environment,
+            final RuntimeParameters runtimeParameters,
+            final StoredExternalEnvParams envParams) {
         this.environment = environment;
-        this.config = config;
+        this.runtimeParameters = runtimeParameters;
         this.envParams = envParams;
 
-        initStoreCache();
+        this.storeCache = makeStoreCache(environment);
+        initDebug();
     }
 
-    private void initStoreCache() {
-        environment.executeInTransaction(
-                txn -> Arrays.stream(XodusStore.values()).forEach(store -> initStoreCache(txn, store)));
+    private void initDebug() {
+        if (LOGGER.isLevel(Level.DEBUG)) {
+            LOGGER.debug(() -> "opened environment with params: " + envParams);
+            try {
+                doExecute(txn -> {
+                    for (final String storeName : this.environment.getAllStoreNames(txn)) {
+                        final Store store = this.environment.openStore(storeName, StoreConfig.USE_EXISTING, txn);
+                        final long count = store.count(txn);
+                        LOGGER.debug(() -> " existing store '" + storeName + "' with count=" + count);
+                    }
+                });
+            } catch (final Throwable t) {
+                LOGGER.error(() -> " error generating store size debug output: " + t.getMessage(), t);
+            }
+        }
     }
 
-    private void initStoreCache(final Transaction txn, final XodusStore storeName) {
-        final Store store = environment.openStore(storeName.name(), storeName.getStoreConfig(), txn);
-        storeCache.put(storeName, store);
+    public RuntimeParameters runtimeParameters() {
+        return runtimeParameters;
     }
 
-    public EnvParams envParams() {
-        return envParams;
+    private static Map<XodusStore, Store> makeStoreCache(final Environment environment) {
+        final var map = new EnumMap<XodusStore, Store>(XodusStore.class);
+
+        environment.executeInTransaction(txn -> {
+            for (final XodusStore xodusStore : XodusStore.values()) {
+                final Store store = environment.openStore(xodusStore.name(), xodusStore.getStoreConfig(), txn);
+                map.put(xodusStore, store);
+            }
+        });
+
+        return Map.copyOf(map);
     }
 
     public Path envPath() {
-        return config.path();
+        return runtimeParameters.path();
     }
 
     Store getStore(final XodusStore storeName) {
         return storeCache.get(storeName);
     }
 
-    public void truncateAllStores() {
-        environment.executeInTransaction(txn -> {
-            for (final String key : environment.getAllStoreNames(txn)) {
-                if (environment.storeExists(key, txn)) {
-                    environment.truncateStore(key, txn);
-                }
-            }
-        });
-        initStoreCache();
-    }
-
-    void truncateStore(final Transaction txn, final XodusStore xodusStore) {
-        if (environment.storeExists(xodusStore.name(), txn)) {
-            environment.truncateStore(xodusStore.name(), txn);
-        }
-        initStoreCache(txn, xodusStore);
-    }
-
     public void close() {
-        LOG.debug(() -> "close requested with "
+        LOGGER.debug(() -> "close requested with "
                 + ACTIVE_OPERATIONS.get() + " active operations and "
                 + OPEN_ITERATORS.get() + " open iterators");
+
         environmentOpen.set(false);
 
         final Instant startTime = Instant.now();
 
         while (ACTIVE_OPERATIONS.get() + OPEN_ITERATORS.get() > 0) {
-            System.out.println("ops=" + ACTIVE_OPERATIONS.get());
-            System.out.println("iters=" + OPEN_ITERATORS.get());
-            LOG.debug(
+            LOGGER.debug(
                     () -> "waiting for "
                             + ACTIVE_OPERATIONS.get() + " active operations and "
                             + OPEN_ITERATORS.get() + " open iterators to complete",
-                    Duration.between(Instant.now(), startTime));
+                    startTime);
             try {
                 Thread.sleep(5000); // Wait for a short period before checking again
-            } catch (InterruptedException e) {
+            } catch (final InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
         }
@@ -131,12 +136,12 @@ public class EnvironmentWrapper {
         this.environment.close();
     }
 
-    public static EnvironmentWrapper forConfig(final XodusFsConfig config) throws JcxfsException {
-        final EnvParams envParams = EnvParams.readFromFile(config.path());
+    public static EnvironmentWrapper forConfig(final RuntimeParameters config) throws JcxfsException {
+        final StoredExternalEnvParams envParams = StoredExternalEnvParams.readFromFile(config.path());
         return EnvironmentWrapper.forConfig(config, envParams);
     }
 
-    public static EnvironmentWrapper forConfig(final XodusFsConfig config, final EnvParams envParams)
+    static EnvironmentWrapper forConfig(final RuntimeParameters config, final StoredExternalEnvParams envParams)
             throws JcxfsException {
         return new EnvironmentWrapper(XodusFsUtils.openEnv(config), config, envParams);
     }
@@ -150,7 +155,7 @@ public class EnvironmentWrapper {
             ACTIVE_OPERATIONS.incrementAndGet();
             return environment.computeInTransaction(computable);
         } catch (final RuntimeXodusFsException e) {
-            LOG.debug(() -> "error computing transaction: " + e.getMessage(), e);
+            LOGGER.debug(() -> "error computing transaction: " + e.getMessage(), e);
             throw e.asXodusFsException();
         } finally {
             ACTIVE_OPERATIONS.decrementAndGet();
@@ -167,15 +172,14 @@ public class EnvironmentWrapper {
     public boolean removeKeyValue(
             final Transaction txn, final XodusStore xodusStore, final ByteIterable key, final ByteIterable value)
             throws FileOpException {
-        return doCompute(p -> {
-            try (final Cursor cursor = getStore(xodusStore).openCursor(txn)) {
-                if (cursor.getSearchBoth(key, value)) {
-                    cursor.deleteCurrent();
-                    return true;
-                }
+        try (final Cursor cursor = getStore(xodusStore).openCursor(txn)) {
+            if (cursor.getSearchBoth(key, value)) {
+                cursor.deleteCurrent();
+                return true;
             }
-            return false;
-        });
+        }
+
+        return false;
     }
 
     void forEach(
@@ -288,13 +292,14 @@ public class EnvironmentWrapper {
         }
     }
 
-    public Optional<XodusFsParams> readXodusFsParams() throws JcxfsException {
+    public Optional<StoredInternalEnvParams> readXodusFsParams() throws JcxfsException {
         try {
             return doCompute(txn -> {
                 final ByteIterable data = getStore(XodusStore.XODUS_META).get(txn, KEY_XODUS_FS_PARAMS);
                 if (data != null) {
                     final String jsonValue = StringBinding.entryToString(data);
-                    final XodusFsParams xodusFsParams = JsonUtil.deserialize(jsonValue, XodusFsParams.class);
+                    final StoredInternalEnvParams xodusFsParams =
+                            JsonUtil.deserialize(jsonValue, StoredInternalEnvParams.class);
                     return Optional.of(xodusFsParams);
                 }
                 return Optional.empty();
@@ -304,7 +309,7 @@ public class EnvironmentWrapper {
         }
     }
 
-    public void writeXodusFsParams(final XodusFsParams xodusFsParams) throws JcxfsException {
+    public void writeXodusFsParams(final StoredInternalEnvParams xodusFsParams) throws JcxfsException {
         Objects.requireNonNull(xodusFsParams);
 
         try {

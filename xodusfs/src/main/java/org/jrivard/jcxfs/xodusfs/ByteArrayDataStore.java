@@ -16,8 +16,10 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import java.io.ByteArrayOutputStream;
 import java.nio.ByteBuffer;
+import java.time.Instant;
 import java.util.HexFormat;
 import java.util.Map;
 import jetbrains.exodus.ArrayByteIterable;
@@ -36,22 +38,31 @@ class ByteArrayDataStore implements DataStore {
     private final Store dataStore;
     private final Store dataLengthStore;
     private final int pageSize;
+    private final Cache<Long, Long> lengthCache;
 
     public ByteArrayDataStore(final EnvironmentWrapper environmentWrapper) throws JcxfsException {
         this.environmentWrapper = environmentWrapper;
         this.dataStore = environmentWrapper.getStore(XodusStore.DATA);
         this.dataLengthStore = environmentWrapper.getStore(XodusStore.DATA_LENGTH);
         this.pageSize = environmentWrapper.readXodusFsParams().orElseThrow().pageSize();
+
+        lengthCache = StoreBucket.makeCache(environmentWrapper);
     }
 
     private void writeFidLength(final Transaction txn, final long fid, final long length) {
+        lengthCache.invalidate(fid);
         dataLengthStore.put(txn, LongBinding.longToEntry(fid), LongBinding.longToEntry(length));
     }
 
     private long readFidLength(final Transaction txn, final long fid) {
-        final ByteIterable storedValue = dataLengthStore.get(txn, LongBinding.longToEntry(fid));
-        return storedValue == null ? 0 : LongBinding.entryToLong(storedValue);
+        return lengthCache.get(fid, lambdaFid -> {
+            final ByteIterable storedValue = dataLengthStore.get(txn, LongBinding.longToEntry(lambdaFid));
+            return storedValue == null ? 0 : LongBinding.entryToLong(storedValue);
+        });
     }
+
+    @Override
+    public void close() {}
 
     @Override
     public long totalPagesUsed(final Transaction txn) {
@@ -61,6 +72,10 @@ class ByteArrayDataStore implements DataStore {
     @Override
     public long length(final Transaction txn, final long fid) {
         return readFidLength(txn, fid);
+    }
+
+    public long size(final Transaction txn) {
+        return dataLengthStore.count(txn);
     }
 
     @Override
@@ -102,6 +117,7 @@ class ByteArrayDataStore implements DataStore {
     }
 
     public void deleteEntry(final Transaction txn, final long fid) {
+        final Instant startTime = Instant.now();
         final long totalLength = readFidLength(txn, fid);
         if (totalLength < 0) {
             throw new IllegalStateException("no such fid");
@@ -116,8 +132,9 @@ class ByteArrayDataStore implements DataStore {
             }
         }
 
+        lengthCache.invalidate(fid);
         dataLengthStore.delete(txn, LongBinding.longToEntry(fid));
-        LOGGER.trace(() -> "removed " + (totalPages + 1) + " pages for fid " + fid);
+        LOGGER.trace(() -> "removed fid " + fid + " with " + (totalPages + 1) + " pages ", startTime);
     }
 
     public int readData(
@@ -300,12 +317,17 @@ class ByteArrayDataStore implements DataStore {
         return Math.toIntExact(Math.divideExact(length, pageSize));
     }
 
+    @Override
+    public Map<String, String> runtimeStats() {
+        return Map.of();
+    }
+
     private class DebugOutputter {
 
         private final Transaction transaction;
-        private final XodusDebugWriter output;
+        private final XodusConsoleWriter output;
 
-        public DebugOutputter(final Transaction transaction, final XodusDebugWriter output) {
+        public DebugOutputter(final Transaction transaction, final XodusConsoleWriter output) {
             this.transaction = transaction;
             this.output = output;
         }
@@ -318,14 +340,14 @@ class ByteArrayDataStore implements DataStore {
         }
 
         private void printPathEntryDebug(
-                final Map.Entry<ByteIterable, ByteIterable> entry, final XodusDebugWriter writer) {
+                final Map.Entry<ByteIterable, ByteIterable> entry, final XodusConsoleWriter writer) {
             final DataKey dataKey = DataKey.fromByteIterable(entry.getKey());
             writer.writeLine(" dataPage: inode=" + InodeId.prettyPrint(dataKey.fid()) + " page: " + dataKey.page()
                     + " length: " + entry.getValue().getLength());
         }
     }
 
-    public void printStats(final XodusDebugWriter writer) {
+    public void printDumpOutput(final XodusConsoleWriter writer) {
 
         try {
             environmentWrapper.doExecute(txn -> {

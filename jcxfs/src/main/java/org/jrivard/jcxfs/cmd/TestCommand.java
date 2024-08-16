@@ -22,27 +22,19 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import picocli.CommandLine;
 
-@CommandLine.Command(name = "init", description = "initialize new repository")
-public class InitCommand implements CommandRunnable {
-
-    @CommandLine.ParentCommand
-    protected JcxfsCommandLine parentCommand;
-
-    private static final Logger LOGGER = LoggerFactory.getLogger(InitCommand.class);
+@CommandLine.Command(name = "test", description = "run test process")
+public class TestCommand extends AbstractCommandRunnable {
+    private static final Logger LOGGER = LoggerFactory.getLogger(TestCommand.class);
 
     @CommandLine.Mixin
-    private InitOptions initOptions = new InitOptions();
+    private final InitOptions initOptions = new InitOptions();
 
-    @CommandLine.Mixin
-    private final XodusDbOptions commonOptions = new XodusDbOptions();
-
-    public final Integer call() throws Exception {
-        return parentCommand.doExecute(this);
-    }
+    @CommandLine.Mixin()
+    XodusDbOptions commonOptions = new XodusDbOptions();
 
     public int execute(final CommandContext commandContext) throws Exception {
 
-        LOGGER.trace("beginning init command");
+        LOGGER.trace("beginning test command");
 
         final RuntimeParameters xodusFsConfig = commonOptions.toRuntimeParams();
 
@@ -52,9 +44,6 @@ public class InitCommand implements CommandRunnable {
                 initOptions.cipherClass.implClass(),
                 initOptions.authHash.implClass(),
                 initOptions.xodusPageSize);
-
-        XodusFsUtils.initXodusFileStore(initParameters);
-        commandContext.consoleOutput().writeLine("xodus-db created");
 
         return 0;
     }

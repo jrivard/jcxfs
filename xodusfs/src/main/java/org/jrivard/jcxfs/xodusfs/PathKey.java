@@ -28,33 +28,23 @@ public record PathKey(String path) implements StoreKey {
 
     public PathKey {
         Objects.requireNonNull(path);
-        verifyPathSyntax(path);
+        String effectivePath = path;
+
+        while (effectivePath.startsWith("//")) {
+            effectivePath = effectivePath.substring(1);
+        }
+
+        verifyPathSyntax(effectivePath);
+
+        path = effectivePath;
     }
 
     public static PathKey of(final String path) {
         return new PathKey(path);
     }
 
-    public static PathKey root() {
-        return ROOT_PATH;
-    }
-
     public String path() {
         return path;
-    }
-
-    public PathKey append(final String subpath) {
-        if (subpath.contains(PATH_SEPARATOR)) {
-            throw new IllegalArgumentException("cannot append subpath containing path separator");
-        }
-
-        final String appendedPath = isRoot() ? this.path() + subpath : this.path() + PATH_SEPARATOR + subpath;
-
-        return new PathKey(appendedPath);
-    }
-
-    public static PathKey fromByteIterable(final ByteIterable byteIterable) {
-        return new PathKey(StringBinding.entryToString(byteIterable));
     }
 
     public ByteIterable toByteIterable() {

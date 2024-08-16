@@ -17,6 +17,7 @@
 package org.jrivard.jcxfs.xodusfs.util;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.time.temporal.ChronoUnit;
 import java.util.function.Supplier;
 import org.slf4j.ILoggerFactory;
@@ -49,6 +50,10 @@ public class XodusFsLogger {
         doLog(slfLogger, Level.TRACE, null, message, null);
     }
 
+    public void trace(final Supplier<String> message, final Instant startTime) {
+        doLog(slfLogger, Level.TRACE, null, message, startTime);
+    }
+
     public void trace(final String message) {
         doLog(slfLogger, Level.TRACE, null, message);
     }
@@ -57,8 +62,8 @@ public class XodusFsLogger {
         doLog(slfLogger, Level.DEBUG, null, message, null);
     }
 
-    public void debug(final Supplier<String> message, final Duration duration) {
-        doLog(slfLogger, Level.DEBUG, null, message, duration);
+    public void debug(final Supplier<String> message, final Instant startTime) {
+        doLog(slfLogger, Level.DEBUG, null, message, startTime);
     }
 
     public void debug(final Supplier<String> message, final Throwable throwable) {
@@ -77,16 +82,12 @@ public class XodusFsLogger {
         doLog(slfLogger, Level.INFO, null, message);
     }
 
-    public void error(final String message) {
-        doLog(slfLogger, Level.ERROR, null, message);
+    public void error(final Supplier<String> message) {
+        doLog(slfLogger, Level.ERROR, null, message, null);
     }
 
     public void error(final Supplier<String> message, final Throwable t) {
         doLog(slfLogger, Level.ERROR, t, message, null);
-    }
-
-    public void error(final String message, final Throwable t) {
-        doLog(slfLogger, Level.ERROR, t, message);
     }
 
     private static void doLog(
@@ -109,14 +110,20 @@ public class XodusFsLogger {
             final Level logLevel,
             final Throwable throwable,
             final Supplier<String> message,
-            final Duration duration) {
+            final Instant startTime) {
 
         if (!slf4jLogger.isEnabledForLevel(logLevel)) {
             return;
         }
 
-        final Supplier<String> effectiveMessage =
-                duration == null ? message : () -> message.get() + " (" + duration.truncatedTo(ChronoUnit.MILLIS) + ")";
+        final Supplier<String> effectiveMessage;
+
+        if (startTime == null) {
+            effectiveMessage = message;
+        } else {
+            final Duration duration = Duration.between(startTime, Instant.now());
+            effectiveMessage = () -> message.get() + " (" + duration.truncatedTo(ChronoUnit.MILLIS) + ")";
+        }
 
         slf4jLogger.makeLoggingEventBuilder(logLevel).setCause(throwable).log(effectiveMessage);
     }

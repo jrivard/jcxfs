@@ -16,106 +16,144 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
-import jetbrains.exodus.env.Environment;
-import jetbrains.exodus.env.EnvironmentConfig;
-import jetbrains.exodus.env.Environments;
-import jetbrains.exodus.env.Store;
-import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
-
 import java.io.IOException;
 import java.io.Writer;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
+import java.util.random.RandomGenerator;
 import java.util.stream.Stream;
+import jetbrains.exodus.crypto.streamciphers.ChaChaStreamCipherProvider;
+import jetbrains.exodus.env.Environment;
+import jetbrains.exodus.env.EnvironmentConfig;
+import jetbrains.exodus.env.Environments;
+import jetbrains.exodus.env.Store;
+import org.jetbrains.annotations.NotNull;
+import org.jrivard.jcxfs.xodusfs.cipher.ArgonAuthMachine;
+import org.jrivard.jcxfs.xodusfs.cipher.AuthException;
+import org.jrivard.jcxfs.xodusfs.cipher.AuthMachine;
+import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 
 public final class XodusFsUtils {
     private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(XodusFsUtils.class);
 
-    public static void printStats(final XodusFsConfig xodusFsConfig, final Writer writer)
+    public static void printStats(final RuntimeParameters xodusFsConfig, final Writer writer)
             throws FileOpException, JcxfsException {
 
-        final XodusDebugWriter xodusDebugWriter = XodusDebugWriter.forWriter(writer);
+        final XodusConsoleWriter xodusConsoleWriter = XodusConsoleWriter.forWriter(writer);
 
         {
             final EnvironmentWrapper environmentWrapper = EnvironmentWrapper.forConfig(xodusFsConfig);
-            xodusDebugWriter.writeLine("db stats:");
-            for (final XodusStore dataStore : XodusStore.values()) {
-                final Store store = environmentWrapper.getStore(dataStore);
-                final long count = environmentWrapper.doCompute(store::count);
-                xodusDebugWriter.writeLine(dataStore + " records: " + count);
-            }
-            xodusDebugWriter.writeLine("\n\nPath Store Output:");
+            xodusConsoleWriter.writeLine("db stats:");
+
+            environmentWrapper.doExecute(txn -> {
+                for (final XodusStore dataStore : XodusStore.values()) {
+                    final Store store = environmentWrapper.getStore(dataStore);
+                    final long count = store.count(txn);
+                    xodusConsoleWriter.writeLine(dataStore + " records: " + count);
+                }
+            });
+
+            xodusConsoleWriter.writeLine("\n\nPath Store Output:");
             environmentWrapper.close();
         }
 
         try (final XodusFsImpl xodusFs = open(xodusFsConfig)) {
 
             for (final StoreBucket storeBucket : xodusFs.storeBuckets()) {
-                storeBucket.printStats(xodusDebugWriter);
+                storeBucket.printDumpOutput(xodusConsoleWriter);
             }
         } catch (final Exception e) {
+            LOGGER.error(() -> "error running printStats: " + e.getMessage(), e);
             throw new RuntimeException(e);
         }
     }
 
-    public static void initXodusFileStore(
-            final XodusFsConfig xodusFsConfig, final EnvParams initParameters, final XodusFsParams xodusFsParams)
-            throws JcxfsException {
+    public record InitParameters(Path path, String password, String cipherClass, String authClass, int pageSize) {
+        public static final int DEFAULT_PAGE_SIZE = 4096;
+        public static final String DEFAULT_CIPHER_CLASS = ChaChaStreamCipherProvider.class.getName();
+        public static final String DEFAULT_AUTH_CLASS = ArgonAuthMachine.class.getName();
+
+        public InitParameters {
+            Objects.requireNonNull(path);
+            Objects.requireNonNull(password);
+            if (password.isEmpty()) {
+                throw new IllegalArgumentException("non empty password required");
+            }
+            cipherClass = cipherClass == null || cipherClass.isEmpty() ? DEFAULT_CIPHER_CLASS : cipherClass;
+            authClass = authClass == null || authClass.isEmpty() ? DEFAULT_AUTH_CLASS : authClass;
+            pageSize = pageSize <= 0 ? DEFAULT_PAGE_SIZE : pageSize;
+        }
+    }
+
+    public static void initXodusFileStore(final InitParameters initParameters) throws JcxfsException {
         try {
-            initImpl(xodusFsConfig, initParameters, xodusFsParams);
+            initImpl(initParameters);
         } catch (final Exception e) {
             throw new JcxfsException("init: io error during init: " + e.getMessage(), e);
         }
     }
 
-    private static void initImpl(
-            final XodusFsConfig xodusFsConfig, final EnvParams initParameters, final XodusFsParams xodusFsParams)
-            throws JcxfsException, IOException {
-        if (!Files.exists(xodusFsConfig.path())) {
+    private static void initImpl(final InitParameters initParameters)
+            throws JcxfsException, IOException, AuthException {
+        if (!Files.exists(initParameters.path())) {
             throw new JcxfsException("init: path does not exist");
         }
 
-        if (!Files.isDirectory(xodusFsConfig.path())) {
+        if (!Files.isDirectory(initParameters.path())) {
             throw new JcxfsException("init: path is not a directory");
         }
 
-        try (final Stream<Path> entries = Files.list(xodusFsConfig.path())) {
+        try (final Stream<Path> entries = Files.list(initParameters.path())) {
             if (entries.findAny().isPresent()) {
-                throw new JcxfsException("init: path is not empty");
+                throw new JcxfsException("init: path must be empty");
             }
         }
 
-        final String cipher = CipherGenerator.makeCipher(initParameters.passwordClass(), xodusFsConfig.password());
+        final long iv = RandomGenerator.of("SecureRandom").nextLong();
 
-        initParameters.writeToFile(xodusFsConfig.path());
+        final AuthMachine cipherGenerator = AuthMachine.makeInstance(initParameters.authClass());
+        cipherGenerator.initNewEnv(initParameters.password());
+        final String cipher = cipherGenerator.readCipher(initParameters.password());
 
-        final EnvironmentConfig environmentConfig = new EnvironmentConfig();
-        environmentConfig.setCipherId(initParameters.cipherClass());
-        environmentConfig.setCipherKey(cipher);
-        environmentConfig.setCipherBasicIV(initParameters.iv());
+        final String passwordData = cipherGenerator.storeEnv();
+        final StoredExternalEnvParams envParams =
+                new StoredExternalEnvParams(iv, initParameters.cipherClass(), initParameters.authClass(), passwordData);
 
-        final Environment env = Environments.newInstance(xodusFsConfig.path().toFile(), environmentConfig);
-        env.close();
-        final EnvironmentWrapper environmentWrapper = EnvironmentWrapper.forConfig(xodusFsConfig, initParameters);
-        environmentWrapper.writeXodusFsParams(xodusFsParams);
+        envParams.writeToFile(initParameters.path());
+
+        final RuntimeParameters runtimeParameters =
+                RuntimeParameters.basic(initParameters.path(), initParameters.password());
+
+        {
+            // make new xodus db
+            final EnvironmentConfig environmentConfig = makeXodusEnvConfig(runtimeParameters, envParams, cipher);
+            final Environment env =
+                    Environments.newInstance(initParameters.path().toFile(), environmentConfig);
+            env.close();
+        }
+
+        final EnvironmentWrapper environmentWrapper = EnvironmentWrapper.forConfig(runtimeParameters);
+
+        final StoredInternalEnvParams internalEnvParams =
+                new StoredInternalEnvParams(XodusFs.VERSION, initParameters.pageSize());
+        environmentWrapper.writeXodusFsParams(internalEnvParams);
         environmentWrapper.close();
         LOGGER.info(() ->
-                "created xodus env at " + xodusFsConfig.path() + " with " + initParameters + " and " + xodusFsParams);
+                "created xodus env at " + initParameters.path() + " with " + initParameters + " and " + envParams);
     }
 
-    static Environment openEnv(final XodusFsConfig config) throws JcxfsException {
+    static Environment openEnv(final RuntimeParameters config) throws JcxfsException {
 
         try {
-            final EnvParams envParams = EnvParams.readFromFile(config.path());
-            final String cipher = CipherGenerator.makeCipher(envParams.passwordClass(), config.password());
+            final StoredExternalEnvParams envParams = StoredExternalEnvParams.readFromFile(config.path());
 
-            final EnvironmentConfig environmentConfig = new EnvironmentConfig();
-            // environmentConfig.setGcUtilizationFromScratch(true);
-            // environmentConfig.setGcMinUtilization(90);
+            final AuthMachine cipherGenerator = AuthMachine.makeInstance(envParams.authClass());
+            cipherGenerator.loadEnv(envParams.authData());
 
-            environmentConfig.setCipherId(envParams.cipherClass());
-            environmentConfig.setCipherKey(cipher);
-            environmentConfig.setCipherBasicIV(envParams.iv());
+            final String cipher = cipherGenerator.readCipher(config.password());
+
+            final EnvironmentConfig environmentConfig = makeXodusEnvConfig(config, envParams, cipher);
 
             final Environment env = Environments.newInstance(config.path().toFile(), environmentConfig);
             LOGGER.info("opened xodus env at " + config.path());
@@ -127,9 +165,47 @@ public final class XodusFsUtils {
         }
     }
 
-    public static XodusFsImpl open(final XodusFsConfig xodusFsConfig) throws JcxfsException {
+    private static @NotNull EnvironmentConfig makeXodusEnvConfig(
+            final RuntimeParameters config, final StoredExternalEnvParams envParams, final String cipher) {
+        final EnvironmentConfig environmentConfig = new EnvironmentConfig();
+
+        if (config.readonly()) {
+            environmentConfig.setEnvIsReadonly(true);
+            environmentConfig.setGcEnabled(false);
+        } else {
+            environmentConfig.setGcMinUtilization(config.gcPercentage());
+            environmentConfig.setGcRunEvery(3600);
+        }
+
+        environmentConfig.setLogCacheUseNio(true);
+        environmentConfig.setLogCacheUseSoftReferences(true);
+        environmentConfig.setEnvStoreGetCacheSize(1000);
+        environmentConfig.setMemoryUsagePercentage(90);
+
+        environmentConfig.setCipherId(envParams.cipherClass());
+        environmentConfig.setCipherKey(cipher);
+        environmentConfig.setCipherBasicIV(envParams.iv());
+        return environmentConfig;
+    }
+
+    public static XodusFsImpl open(final RuntimeParameters xodusFsConfig) throws JcxfsException {
         final EnvironmentWrapper environmentWrapper = EnvironmentWrapper.forConfig(xodusFsConfig);
         return open(environmentWrapper);
+    }
+
+    public static void changePassword(final Path path, final String oldPassword, final String newPassword)
+            throws JcxfsException, AuthException, IOException {
+        final StoredExternalEnvParams storedExternalEnvParams = StoredExternalEnvParams.readFromFile(path);
+        final AuthMachine authMachine = AuthMachine.makeInstance(storedExternalEnvParams.authClass());
+        authMachine.loadEnv(storedExternalEnvParams.authData());
+        authMachine.changePassword(oldPassword, newPassword);
+        final String newData = authMachine.storeEnv();
+        final StoredExternalEnvParams newExternalEnvParams = new StoredExternalEnvParams(
+                storedExternalEnvParams.iv(),
+                storedExternalEnvParams.cipherClass(),
+                storedExternalEnvParams.authClass(),
+                newData);
+        newExternalEnvParams.writeToFile(path);
     }
 
     public static XodusFsImpl open(final EnvironmentWrapper environmentWrapper) throws JcxfsException {
@@ -144,7 +220,7 @@ public final class XodusFsUtils {
 
         final var inodeStore = new InodeStore(environmentWrapper);
         final var pathStore = new PathStore(environmentWrapper);
-        final var dataStore = DataStore.DataStoreImplType.byte_buffer.makeImpl(environmentWrapper);
+        final var dataStore = DataStore.DataStoreImplType.byte_array.makeImpl(environmentWrapper);
 
         return XodusFsImpl.createXodusFsImpl(environmentWrapper, pathStore, inodeStore, dataStore, xodusFsParams);
     }

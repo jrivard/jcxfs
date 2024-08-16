@@ -28,11 +28,27 @@ import jetbrains.exodus.bindings.LongBinding;
 import jetbrains.exodus.env.Store;
 import jetbrains.exodus.env.Transaction;
 import org.jrivard.jcxfs.xodusfs.util.JavaUtil;
+import org.jrivard.jcxfs.xodusfs.util.StatCounterBundle;
 import org.jrivard.jcxfs.xodusfs.util.XodusFsLogger;
 import org.slf4j.event.Level;
 
 class ByteBufferDataStore implements DataStore {
     private static final XodusFsLogger LOGGER = XodusFsLogger.getLogger(ByteBufferDataStore.class);
+
+    private final StatCounterBundle<DataStoreDebugStats> stats = new StatCounterBundle<>(DataStoreDebugStats.class);
+
+    public enum DataStoreDebugStats {
+        dataPagesSparseWrite,
+        dataPagesRead,
+        dataPagesWrite,
+        dataPagesDeleted,
+        dataFileReads,
+        dataFileWrites,
+        dataFileLengthReads,
+        dataFileLengthWrites,
+        bytesRead,
+        bytesWritten,
+    }
 
     private final EnvironmentWrapper environmentWrapper;
     private final Store dataStore;
@@ -47,6 +63,7 @@ class ByteBufferDataStore implements DataStore {
     }
 
     private void writeFidLength(final Transaction txn, final long fid, final long length) {
+        stats.increment(DataStoreDebugStats.dataFileLengthWrites);
         dataLengthStore.put(txn, LongBinding.longToEntry(fid), LongBinding.longToEntry(length));
     }
 
@@ -56,12 +73,16 @@ class ByteBufferDataStore implements DataStore {
     }
 
     @Override
+    public void close() {}
+
+    @Override
     public long totalPagesUsed(final Transaction txn) {
         return dataStore.count(txn);
     }
 
     @Override
     public long length(final Transaction txn, final long fid) {
+        stats.increment(DataStoreDebugStats.dataFileLengthReads);
         return readFidLength(txn, fid);
     }
 
@@ -79,6 +100,7 @@ class ByteBufferDataStore implements DataStore {
 
         final int newLastPage = Math.toIntExact(Math.divideExact(length, pageSize));
 
+        // find the new last page and truncate it to the new length
         {
             final int newLastPageEndPosition = Math.toIntExact(length % pageSize);
             if (newLastPageEndPosition > 0) {
@@ -95,12 +117,14 @@ class ByteBufferDataStore implements DataStore {
             }
         }
 
+        // delete all the orphaned pages
         {
             final int existingTotalPages = calculateTotalDataPages(existingLength);
             for (int loopPage = newLastPage + 1; loopPage <= existingTotalPages; loopPage++) {
                 final ByteIterable key = DataKey.toByteIterable(id, loopPage);
                 dataStore.delete(txn, key);
             }
+            stats.increment(DataStoreDebugStats.dataPagesDeleted, existingTotalPages);
         }
 
         LOGGER.trace(() -> "truncated id=" + InodeId.prettyPrint(id) + " new length=" + length);
@@ -123,7 +147,14 @@ class ByteBufferDataStore implements DataStore {
         }
 
         dataLengthStore.delete(txn, LongBinding.longToEntry(fid));
+
+        stats.increment(DataStoreDebugStats.dataPagesDeleted, totalPages);
+
         LOGGER.trace(() -> "removed " + (totalPages + 1) + " pages for fid " + fid);
+    }
+
+    public long size(final Transaction txn) {
+        return dataLengthStore.count(txn);
     }
 
     public int readData(
@@ -140,7 +171,11 @@ class ByteBufferDataStore implements DataStore {
             recalculatedCount = count;
         }
 
-        return readData2(txn, fid, buf, recalculatedCount, offset);
+        final int bytesRead = readData2(txn, fid, buf, recalculatedCount, offset);
+        stats.increment(DataStoreDebugStats.bytesRead, bytesRead);
+        stats.increment(DataStoreDebugStats.dataFileReads);
+
+        return bytesRead;
     }
 
     private int readData2(
@@ -242,16 +277,11 @@ class ByteBufferDataStore implements DataStore {
                 for (final ByteIterator iterator = existingPageData.iterator(); iterator.hasNext(); ) {
                     pageOutput.put(iterator.next());
                 }
-                // pageOutput.flip();
-                // pageOutput.position( pageWriteStart );
                 pageOutput.put(nextWriteSlice);
                 pageOutput.flip();
             } else {
                 pageOutput = nextWriteSlice;
             }
-
-            // write argument buffer to page output buffer
-            // buf.get(pageOutput, pageWriteStart, pageWriteLength);
 
             writePage(txn, fid, page, pageOutput);
             position += pageWriteLength;
@@ -262,6 +292,8 @@ class ByteBufferDataStore implements DataStore {
 
         updateLengthIfNeeded(txn, fid, lastPosition);
 
+        stats.increment(DataStoreDebugStats.bytesWritten, bytesWritten);
+        stats.increment(DataStoreDebugStats.dataFileWrites);
         return bytesWritten;
     }
 
@@ -277,10 +309,10 @@ class ByteBufferDataStore implements DataStore {
     private ByteIterable readPage(final Transaction txn, final long fid, final int page) {
         final ByteIterable blockKey = DataKey.toByteIterable(fid, page);
         final ByteIterable valueIterable = dataStore.get(txn, blockKey);
-        return valueIterable == null ? ByteIterable.EMPTY : valueIterable;
-        // final byte[] data = valueIterable == null ? new byte[0] : valueIterable.getBytesUnsafe();
-        // logPageOperation("read ", fid, page, data);
-        // return data;
+        stats.increment(DataStoreDebugStats.dataPagesRead);
+        final ByteIterable result = valueIterable == null ? ByteIterable.EMPTY : valueIterable;
+        logPageOperation("read ", fid, page, () -> result.getBytesUnsafe());
+        return result;
     }
 
     private void writePage(final Transaction txn, final long fid, final int page, final ByteBuffer data) {
@@ -290,6 +322,7 @@ class ByteBufferDataStore implements DataStore {
         final ByteIterable valueIterable;
         if (lastNonNullByte == 0) {
             valueIterable = new ByteBufferByteIterable(data);
+            stats.increment(DataStoreDebugStats.dataPagesWrite);
         } else {
             final int length = data.limit() - lastNonNullByte;
             if (data.hasArray()) {
@@ -299,6 +332,7 @@ class ByteBufferDataStore implements DataStore {
                 data.get(byteArray, 0, length);
                 valueIterable = new ArrayByteIterable(byteArray);
             }
+            stats.increment(DataStoreDebugStats.dataPagesSparseWrite);
         }
         logPageOperation("write", fid, page, data::array);
         dataStore.put(txn, blockKey, valueIterable);
@@ -329,12 +363,17 @@ class ByteBufferDataStore implements DataStore {
         return Math.toIntExact(Math.divideExact(length, pageSize));
     }
 
+    @Override
+    public Map<String, String> runtimeStats() {
+        return stats.debugStats();
+    }
+
     private class DebugOutputter {
 
         private final Transaction transaction;
-        private final XodusDebugWriter output;
+        private final XodusConsoleWriter output;
 
-        public DebugOutputter(final Transaction transaction, final XodusDebugWriter output) {
+        public DebugOutputter(final Transaction transaction, final XodusConsoleWriter output) {
             this.transaction = transaction;
             this.output = output;
         }
@@ -347,18 +386,14 @@ class ByteBufferDataStore implements DataStore {
         }
 
         private void printPathEntryDebug(
-                final Map.Entry<ByteIterable, ByteIterable> entry, final XodusDebugWriter writer) {
+                final Map.Entry<ByteIterable, ByteIterable> entry, final XodusConsoleWriter writer) {
             final DataKey dataKey = DataKey.fromByteIterable(entry.getKey());
             writer.writeLine(" dataPage: inode=" + InodeId.prettyPrint(dataKey.fid()) + " page: " + dataKey.page()
                     + " length: " + entry.getValue().getLength());
         }
-
-        static Map.Entry<PathKey, Long> convertPathMapEntry(final Map.Entry<ByteIterable, ByteIterable> entry) {
-            return Map.entry(PathKey.fromByteIterable(entry.getKey()), InodeId.byteIterableToInodeId(entry.getValue()));
-        }
     }
 
-    public void printStats(final XodusDebugWriter writer) {
+    public void printDumpOutput(final XodusConsoleWriter writer) {
 
         try {
             environmentWrapper.doExecute(txn -> {

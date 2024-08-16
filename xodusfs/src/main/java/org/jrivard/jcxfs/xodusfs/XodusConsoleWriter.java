@@ -16,4 +16,22 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
-public record XodusFsParams(int version, int pageSize) {}
+import java.io.IOException;
+import java.io.Writer;
+
+interface XodusConsoleWriter {
+    void writeLine(String s);
+
+    static XodusConsoleWriter forWriter(final Writer writer) {
+        final XodusConsoleWriter xodusConsoleWriter = s -> {
+            try {
+                writer.append(s).append("\n");
+                writer.flush();
+            } catch (final IOException e) {
+                throw new RuntimeException(e);
+            }
+        };
+
+        return xodusConsoleWriter;
+    }
+}

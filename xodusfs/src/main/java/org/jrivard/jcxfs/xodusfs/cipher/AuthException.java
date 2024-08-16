@@ -14,23 +14,10 @@
  * limitations under the License.
  */
 
-package org.jrivard.jcxfs.xodusfs;
+package org.jrivard.jcxfs.xodusfs.cipher;
 
-import java.io.IOException;
-import java.io.Writer;
-
-interface XodusDebugWriter {
-    void writeLine(String s);
-
-    static XodusDebugWriter forWriter(final Writer writer) {
-        final XodusDebugWriter xodusDebugWriter = s -> {
-            try {
-                writer.append(s + "\n");
-            } catch (IOException e) {
-                throw new RuntimeException(e);
-            }
-        };
-
-        return xodusDebugWriter;
+public class AuthException extends Exception {
+    public AuthException(final String message, final Throwable cause) {
+        super(message, cause);
     }
 }

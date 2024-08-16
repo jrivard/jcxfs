@@ -20,37 +20,15 @@ import java.nio.ByteBuffer;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Assertions;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.api.parallel.Execution;
-import org.junit.jupiter.api.parallel.ExecutionMode;
 
-@Execution(ExecutionMode.SAME_THREAD)
 public class XodusFsTest {
-    @TempDir
-    public Path temporaryFolder;
-
-    private XodusFsImpl xodusFs;
-
-    @BeforeEach
-    public void setUp() throws Exception {
-        final EnvironmentWrapper environmentWrapper = XodusFsTestUtils.makeEnv(temporaryFolder);
-        xodusFs = XodusFsUtils.open(environmentWrapper);
-    }
-
-    @AfterEach
-    public void shutdown() {
-        final EnvironmentWrapper environmentWrapper = xodusFs.environmentWrapper();
-        environmentWrapper.truncateAllStores();
-        environmentWrapper.close();
-        xodusFs = null;
-    }
-
     @Test
-    void createWriteLength() throws FileOpException {
+    void createWriteLength(@TempDir Path tempFolder) throws Exception {
+        final XodusFs xodusFs = XodusFsUtils.open(XodusFsTestUtils.makeEnv(tempFolder));
+
         final String fileName = "/file1";
         final int length = 5555;
         xodusFs.createFileEntry(fileName, InodeEntry.newFileEntry().mode());
@@ -64,7 +42,9 @@ public class XodusFsTest {
     }
 
     @Test
-    void simpleCreateWriteReadFile() throws FileOpException, JcxfsException {
+    void simpleCreateWriteReadFile(@TempDir Path tempFolder) throws Exception {
+        final XodusFs xodusFs = XodusFsUtils.open(XodusFsTestUtils.makeEnv(tempFolder));
+
         final String fileName = "/file1";
         final int length = 5555;
         xodusFs.createFileEntry(fileName, InodeEntry.newFileEntry().mode());
@@ -82,7 +62,9 @@ public class XodusFsTest {
     }
 
     @Test
-    void simpleCreateWriteDelete() throws FileOpException, JcxfsException {
+    void simpleCreateWriteDelete(@TempDir Path tempFolder) throws Exception {
+        final XodusFs xodusFs = XodusFsUtils.open(XodusFsTestUtils.makeEnv(tempFolder));
+
         final String fileName = "/file1";
         final int length = 5555;
         final byte[] data = XodusFsTestUtils.makeData(length);
@@ -108,7 +90,9 @@ public class XodusFsTest {
     }
 
     @Test
-    void readSubPaths() throws JcxfsException, FileOpException {
+    void readSubPaths(@TempDir Path tempFolder) throws Exception {
+        final XodusFs xodusFs = XodusFsUtils.open(XodusFsTestUtils.makeEnv(tempFolder));
+
         final List<PathKey> subPaths = List.of(
                 PathKey.of("/1"),
                 PathKey.of("/2"),

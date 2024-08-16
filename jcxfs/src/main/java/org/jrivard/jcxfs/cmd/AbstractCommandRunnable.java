@@ -20,7 +20,7 @@ import picocli.CommandLine;
 
 public abstract class AbstractCommandRunnable implements CommandRunnable {
     @CommandLine.ParentCommand
-    private JcxfsCommandLine parentCommand;
+    protected JcxfsCommandLine parentCommand;
 
     @Override
     public final Integer call() throws Exception {

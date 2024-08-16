@@ -16,24 +16,16 @@
 
 package org.jrivard.jcxfs.xodusfs;
 
-import jetbrains.exodus.env.StoreConfig;
+import java.nio.file.Path;
+import java.util.Objects;
 
-enum XodusStore {
-    DATA(StoreConfig.WITHOUT_DUPLICATES),
-    DATA_LENGTH(StoreConfig.WITHOUT_DUPLICATES),
-    PATH(StoreConfig.WITH_DUPLICATES),
-    INODE(StoreConfig.WITHOUT_DUPLICATES),
-    INODE_META(StoreConfig.WITHOUT_DUPLICATES),
-    XODUS_META(StoreConfig.WITHOUT_DUPLICATES),
-    ;
-
-    private final StoreConfig storeConfig;
-
-    XodusStore(final StoreConfig storeConfig) {
-        this.storeConfig = storeConfig;
+public record RuntimeParameters(Path path, String password, int gcPercentage, boolean readonly) {
+    public RuntimeParameters {
+        Objects.requireNonNull(path);
+        Objects.requireNonNull(password);
     }
 
-    public StoreConfig getStoreConfig() {
-        return storeConfig;
+    public static RuntimeParameters basic(final Path path, final String password) {
+        return new RuntimeParameters(path, password, 80, false);
     }
 }

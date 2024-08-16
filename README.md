@@ -72,7 +72,7 @@ The output build file will be in ```target/jcxfs-0.0.0-executable.jar```
 ## Execute
 
 Execute pre-requisites:
-* Java 22
+* Java 22 or later
 * FUSE3 libraries installed 
   * On ubuntu use ```sudo apt install fuse```
 * FUSE3 modules loaded
@@ -98,14 +98,14 @@ target directory is empty and gives an opportunity to specify database environme
 Example:
 
 ```
-java --enable-native-access=ALL-UNNAMED -jar jcxfs-0.0.0-executable.jar -db "/home/user/jcxfs-database" -w "password" init
+java --enable-native-access=ALL-UNNAMED -jar jcxfs-0.0.0-executable.jar init -w "password" "/home/user/jcxfs-database"  
 
 ```
 
 ### Mount filesystem
 To mount an initialized jcxfs database, use a command similar to the following:
 ```
-java --enable-native-access=ALL-UNNAMED -jar jcxfs-0.0.0-executable.jar -db "/home/user/jcxfs-database" -w "password" mount /mnt/mountpoint
+java --enable-native-access=ALL-UNNAMED -jar jcxfs-0.0.0-executable.jar mount -w "password" "/home/user/jcxfs-database" /mnt/mountpoint
 ```
 This will mount the jcxfs database at mount point `/mnt/mountpoint`.  If the mount is successful, the program
 output will pause and wait for the user to press enter to exit.  Until the program exits, the file system
